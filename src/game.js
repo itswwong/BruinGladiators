@@ -4,17 +4,10 @@ let player, platforms = [], keys = {};
 let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
 const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
-let mapBounds; // To be defined based on camera
+const mapBounds = { left: -10, right: 10, bottom: -5 }; // Define map boundaries
 
 // Initialize the game
-export function initGame(scene, camera) {
-  // Define map bounds based on camera dimensions
-  mapBounds = {
-    left: camera.left,
-    right: camera.right,
-    bottom: camera.bottom
-  };
-
+export function initGame(scene) {
   // Create player
   const playerGeometry = new THREE.PlaneGeometry(0.5, 0.5);
   const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
@@ -23,7 +16,7 @@ export function initGame(scene, camera) {
   scene.add(player);
 
   // Create ground platform
-  createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
+  createPlatform(scene, 0, -2, 20, 1);
 
   // Create floating platforms
   createPlatform(scene, -3, -1, 2, 0.5);
@@ -47,10 +40,10 @@ function createPlatform(scene, x, y, width, height) {
 // Game loop logic, to be called in animate
 export function gameLoop() {
   // Horizontal movement
-  if (keys['ArrowLeft'] && player.position.x > mapBounds.left) {
+  if ((keys['ArrowLeft'] || keys['a']) && player.position.x > mapBounds.left) {
     player.position.x -= 0.05;
   }
-  if (keys['ArrowRight'] && player.position.x < mapBounds.right) {
+  if ((keys['ArrowRight'] || keys['d']) && player.position.x < mapBounds.right) {
     player.position.x += 0.05;
   }
 
@@ -79,7 +72,7 @@ export function gameLoop() {
   }
 
   // Jump if space is pressed and player is on the ground
-  if (keys[' '] && onGround) {
+  if ((keys[' '] || keys['w'])&& onGround) {
     playerVelocityY = jumpStrength;
   }
 }
