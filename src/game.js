@@ -4,10 +4,17 @@ let player, platforms = [], keys = {};
 let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
 const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
-const mapBounds = { left: -10, right: 10, bottom: -5 }; // Define map boundaries
+let mapBounds; // To be defined based on camera
 
 // Initialize the game
-export function initGame(scene) {
+export function initGame(scene, camera) {
+  // Define map bounds based on camera dimensions
+  mapBounds = {
+    left: camera.left,
+    right: camera.right,
+    bottom: camera.bottom
+  };
+
   // Create player
   const playerGeometry = new THREE.PlaneGeometry(0.5, 0.5);
   const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
@@ -16,7 +23,7 @@ export function initGame(scene) {
   scene.add(player);
 
   // Create ground platform
-  createPlatform(scene, 0, -2, 20, 1);
+  createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
 
   // Create floating platforms
   createPlatform(scene, -3, -1, 2, 0.5);
