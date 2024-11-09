@@ -3,7 +3,15 @@ import { initGame, gameLoop } from './game';
 
 // Set up the scene
 const scene = new THREE.Scene();
-const camera = new THREE.OrthographicCamera(-10, 10, 5, -5, 0.1, 100);
+
+// Calculate aspect ratio and adjust camera
+const aspectRatio = window.innerWidth / window.innerHeight;
+const viewSize = 5; // This value can be adjusted to zoom in/out
+const camera = new THREE.OrthographicCamera(
+  -aspectRatio * viewSize, aspectRatio * viewSize, 
+  viewSize, -viewSize, 
+  0.1, 100
+);
 camera.position.set(0, 0, 10);
 
 // Renderer
@@ -12,7 +20,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // Game initialization
-initGame(scene);
+initGame(scene, camera);
 
 // Render loop
 function animate() {
@@ -25,3 +33,14 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  const aspectRatio = window.innerWidth / window.innerHeight;
+  camera.left = -aspectRatio * viewSize;
+  camera.right = aspectRatio * viewSize;
+  camera.top = viewSize;
+  camera.bottom = -viewSize;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
