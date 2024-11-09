@@ -16,7 +16,8 @@ export function initGame(scene) {
   scene.add(player);
 
   // Create ground platform
-  createPlatform(scene, 0, -2, 20, 1);
+  createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
+
 
   // Create floating platforms
   createPlatform(scene, -3, -3, 2, 0.5);
