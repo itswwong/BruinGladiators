@@ -26,8 +26,8 @@ export function initGame(scene, camera) {
   createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
 
   // Create floating platforms
-  createPlatform(scene, -3, -1, 2, 0.5);
-  createPlatform(scene, 3, 1, 2, 0.5);
+  createPlatform(scene, -3, -3, 2, 0.5);
+  createPlatform(scene, 3, -2, 2, 0.5);
 
   // Handle keyboard input
   document.addEventListener('keydown', (event) => keys[event.key] = true);
