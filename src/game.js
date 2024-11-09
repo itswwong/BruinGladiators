@@ -1,0 +1,66 @@
+import * as THREE from 'three';
+
+let player, platforms = [], keys = {};
+let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
+const gravity = -0.005;    // Gravity strength
+const jumpStrength = 0.15; // Jump strength
+
+// Initialize the game
+export function initGame(scene) {
+  // Create player
+  const playerGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+  const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  player = new THREE.Mesh(playerGeometry, playerMaterial);
+  player.position.set(0, 0, 0);
+  scene.add(player);
+
+  // Create ground platform
+  createPlatform(scene, 0, -2, 20, 1);
+
+  // Create floating platforms
+  createPlatform(scene, -3, -1, 2, 0.5);
+  createPlatform(scene, 3, 1, 2, 0.5);
+
+  // Handle keyboard input
+  document.addEventListener('keydown', (event) => keys[event.key] = true);
+  document.addEventListener('keyup', (event) => keys[event.key] = false);
+}
+
+// Function to create platforms
+function createPlatform(scene, x, y, width, height) {
+  const geometry = new THREE.BoxGeometry(width, height, 0.5);
+  const material = new THREE.MeshBasicMaterial({ color: 0x654321 });
+  const platform = new THREE.Mesh(geometry, material);
+  platform.position.set(x, y, 0);
+  platforms.push(platform);
+  scene.add(platform);
+}
+
+// Game loop logic, to be called in animate
+export function gameLoop() {
+  // Horizontal movement
+  if (keys['ArrowLeft']) player.position.x -= 0.05;
+  if (keys['ArrowRight']) player.position.x += 0.05;
+
+  // Apply gravity
+  playerVelocityY += gravity;
+  player.position.y += playerVelocityY;
+
+  // Collision detection and platform landing
+  let onGround = false;
+  platforms.forEach(platform => {
+    if (player.position.y <= platform.position.y + platform.geometry.parameters.height / 2 &&
+        player.position.y > platform.position.y &&
+        player.position.x > platform.position.x - platform.geometry.parameters.width / 2 &&
+        player.position.x < platform.position.x + platform.geometry.parameters.width / 2) {
+      player.position.y = platform.position.y + platform.geometry.parameters.height / 2;  // Land on platform
+      playerVelocityY = 0;  // Reset velocity when on ground
+      onGround = true;
+    }
+  });
+
+  // Jump if space is pressed and player is on the ground
+  if (keys[' '] && onGround) {
+    playerVelocityY = jumpStrength;
+  }
+}
