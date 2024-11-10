@@ -27,7 +27,7 @@ function animate() {
   requestAnimationFrame(animate);
 
   // Call game loop for logic updates
-  gameLoop();
+  gameLoop(scene);
 
   // Render the scene
   renderer.render(scene, camera);
