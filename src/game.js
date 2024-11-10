@@ -1,10 +1,16 @@
 import * as THREE from 'three';
+import { distance } from 'three/webgpu';
 
-let player, platforms = [], keys = {};
+let player, platforms = [], keys = {}, enemies = [];
 let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
 const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
 const mapBounds = { left: -10, right: 10, bottom: -5 }; // Define map boundaries
+
+let facingRight = true;
+
+// length, material, and mesh of claw
+let clawLength = 3;
 
 // Initialize the game
 export function initGame(scene) {
@@ -14,6 +20,9 @@ export function initGame(scene) {
   player = new THREE.Mesh(playerGeometry, playerMaterial);
   player.position.set(0, 0, 0);
   scene.add(player);
+
+  // Create dummy to test the player's combat
+  createEnemy(scene, 2, -3.8);
 
   // Create ground platform
   createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
@@ -28,6 +37,16 @@ export function initGame(scene) {
   document.addEventListener('keyup', (event) => keys[event.key] = false);
 }
 
+// Create enemies at the specified coordinates for the given scene
+function createEnemy(scene, xCoord, yCoord){
+  const enemyG = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+  const enemyMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+  const enemyMesh = new THREE.Mesh(enemyG, enemyMat);
+  enemyMesh.position.set(xCoord, yCoord, 0);
+  enemies.push(enemyMesh);
+  scene.add(enemyMesh);
+}
+
 // Function to create platforms
 function createPlatform(scene, x, y, width, height) {
   const geometry = new THREE.PlaneGeometry(width, height);
@@ -38,15 +57,56 @@ function createPlatform(scene, x, y, width, height) {
   scene.add(platform);
 }
 
+function attack(scene, clawLength){
+  const clawG = new THREE.CylinderGeometry(0.05, 0.05, clawLength, 8);
+  const clawMat = new THREE.MeshBasicMaterial({color: 0xff0000});
+  const claw = new THREE.Mesh(clawG, clawMat);
+  console.log("start attacking");
+  claw.position.set(player.position.x + (facingRight ? 0.5 : -0.5), player.position.y, player.position.z);
+  claw.rotation.z = Math.PI / 2;
+
+  if(facingRight){
+    claw.position.x += 1.5;
+  }
+  else{
+    claw.position.x -= 1.5;
+  }
+
+  scene.add(claw);
+  console.log("claw now attacking");
+
+  enemies.forEach(enemy => {
+    const dist = claw.position.distanceTo(enemy.position);
+    if(dist < 1){
+      console.log("hit enemy");
+    }
+  })
+
+  setTimeout(() => {
+    scene.remove(claw);
+  }, 200);
+}
+
 // Game loop logic, to be called in animate
-export function gameLoop() {
+export function gameLoop(scene) {
   // Horizontal movement
   if ((keys['ArrowLeft'] || keys['a']) && player.position.x > mapBounds.left) {
     player.position.x -= 0.05;
+    facingRight = false;
   }
   if ((keys['ArrowRight'] || keys['d']) && player.position.x < mapBounds.right) {
     player.position.x += 0.05;
+    facingRight = true;
   }
+
+  // Check if the player is touching an enemy's hit box
+  // If so, they should take damage
+  enemies.forEach(enemy => {
+    const dist = player.position.distanceTo(enemy.position);
+    if(dist < 1){
+      console.log("enemy touching player");
+    }
+  })
 
   // Apply gravity
   playerVelocityY += gravity;
@@ -75,5 +135,11 @@ export function gameLoop() {
   // Jump if space is pressed and player is on the ground
   if ((keys[' '] || keys['w'])&& onGround) {
     playerVelocityY = jumpStrength;
+  }
+
+  // Attack Button
+  if((keys['e'])){
+    console.log("attack");
+    attack(scene, clawLength);
   }
 }
