@@ -6,6 +6,7 @@ let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
 const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
 const mapBounds = { left: -10, right: 10, bottom: -5 }; // Define map boundaries
+
 let facingRight = true;
 
 // length, material, and mesh of claw
