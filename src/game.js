@@ -7,6 +7,9 @@ const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
 const mapBounds = { left: -10, right: 10, bottom: -5 }; // Define map boundaries
 
+let canAttack = true;
+const cooldown = 1000;
+let lastAttack = 0;
 let facingRight = true;
 
 // length, material, and mesh of claw
@@ -58,33 +61,41 @@ function createPlatform(scene, x, y, width, height) {
 }
 
 function attack(scene, clawLength){
-  const clawG = new THREE.CylinderGeometry(0.05, 0.05, clawLength, 8);
-  const clawMat = new THREE.MeshBasicMaterial({color: 0xff0000});
-  const claw = new THREE.Mesh(clawG, clawMat);
-  console.log("start attacking");
-  claw.position.set(player.position.x + (facingRight ? 0.5 : -0.5), player.position.y, player.position.z);
-  claw.rotation.z = Math.PI / 2;
+  let time = Date.now();
+  
+  if(canAttack && time - lastAttack >= cooldown){
+    canAttack = false;
+    lastAttack = time;
 
-  if(facingRight){
-    claw.position.x += 1.5;
-  }
-  else{
-    claw.position.x -= 1.5;
-  }
+    const clawG = new THREE.CylinderGeometry(0.05, 0.05, clawLength, 8);
+    const clawMat = new THREE.MeshBasicMaterial({color: 0xff0000});
+    const claw = new THREE.Mesh(clawG, clawMat);
+    console.log("start attacking");
+    claw.position.set(player.position.x + (facingRight ? 0.5 : -0.5), player.position.y, player.position.z);
+    claw.rotation.z = Math.PI / 2;
 
-  scene.add(claw);
-  console.log("claw now attacking");
-
-  enemies.forEach(enemy => {
-    const dist = claw.position.distanceTo(enemy.position);
-    if(dist < 1){
-      console.log("hit enemy");
+    if(facingRight){
+      claw.position.x += 1.5;
     }
-  })
+    else{
+      claw.position.x -= 1.5;
+    }
 
-  setTimeout(() => {
-    scene.remove(claw);
-  }, 200);
+    scene.add(claw);
+    console.log("claw now attacking");
+
+    enemies.forEach(enemy => {
+      const dist = claw.position.distanceTo(enemy.position);
+      if(dist < 1){
+        console.log("hit enemy");
+      }
+    })
+
+    setTimeout(() => {
+      scene.remove(claw);
+      canAttack = true;
+    }, 200);
+  }
 }
 
 // Game loop logic, to be called in animate
