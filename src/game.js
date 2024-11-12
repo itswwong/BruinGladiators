@@ -149,7 +149,7 @@ export function gameLoop(scene) {
   }
 
   // Attack Button
-  if((keys['e'])){
+  if((keys['y'] || keys['u'])){
     console.log("attack");
     attack(scene, clawLength);
   }
