@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+const loader = new THREE.TextureLoader();
 
 let player, platforms = [], keys = {}, enemies = [], doubleClaws = [], fastClaws = [], twoSidedClaws = [];
 let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
@@ -11,6 +12,7 @@ let cooldown = 1000;
 let lastAttack = 0;
 let facingRight = true;
 
+// Length, material, and mesh of claw
 // The possible claws besides the default one are:
 // 1. A claw with double the range of the default
 // 2. A claw with half the cooldown of the default
@@ -56,13 +58,21 @@ export function initGame(scene) {
     playerHealth = 100;
     lastDamageTime = 0;
 
-    // Create player
-    const playerGeometry = new THREE.PlaneGeometry(0.5, 0.5);
-    const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    player = new THREE.Mesh(playerGeometry, playerMaterial);
-    player.position.set(0, 0, 0);
-    scene.add(player);
-  
+    // Load player texture and create player with texture material
+    loader.load('assets/bear_default.png', (texture) => {
+        // Configure texture settings if needed
+        texture.magFilter = THREE.NearestFilter; // Keep pixelated style if the sprite is pixel art
+
+        // Create a material using the loaded texture
+        const playerMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        const playerGeometry = new THREE.PlaneGeometry(1, 1);
+
+        // Create the player mesh and apply the texture
+        player = new THREE.Mesh(playerGeometry, playerMaterial);
+        player.position.set(0, 0, 0);
+        scene.add(player);
+    });
+    
     // Create three different collectible claws, one of each type
     createClaw(scene, -3.5, -2.5, 1);
     createClaw(scene, 3.5, -1.5, 2);
@@ -143,6 +153,9 @@ function createPlatform(scene, x, y, width, height) {
     platforms.push(platform);
     scene.add(platform);
 }
+
+// The rest of your game logic remains the same
+
 
 function attack(scene, clawLength){
   let time = Date.now();
