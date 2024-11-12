@@ -338,11 +338,9 @@ export function gameLoop(scene) {
 
     // Apply gravity
     playerVelocityY += gravity;
-    
-    // Calculate next position
     const nextY = player.position.y + playerVelocityY;
-    
-    // Get current player bounds for next position
+
+    // Get the player's projected bounds for the next frame
     const playerBounds = getObjectBounds(player);
     const nextPlayerBounds = {
         ...playerBounds,
@@ -350,67 +348,47 @@ export function gameLoop(scene) {
         top: nextY + player.geometry.parameters.height / 2
     };
 
-    // Check platform collisions
     let onGround = false;
     let hitCeiling = false;
 
     for (const platform of platforms) {
         const platformBounds = getObjectBounds(platform);
-        
-        // Check if player is horizontally aligned with platform
-        const horizontalOverlap = !(
-            playerBounds.left > platformBounds.right ||
-            playerBounds.right < platformBounds.left
-        );
 
-        if (horizontalOverlap) {
-            // Check for collision from above
-            if (playerVelocityY < 0 && // Moving down
-                nextPlayerBounds.bottom <= platformBounds.top &&
-                playerBounds.bottom >= platformBounds.top) {
-                player.position.y = platformBounds.top + player.geometry.parameters.height / 2;
-                playerVelocityY = 0;
-                onGround = true;
-            }
-            // Check for collision from below
-            else if (playerVelocityY > 0 && // Moving up
-                    nextPlayerBounds.top >= platformBounds.bottom &&
-                    playerBounds.top <= platformBounds.bottom) {
-                player.position.y = platformBounds.bottom - player.geometry.parameters.height / 2;
-                playerVelocityY = 0;
-                hitCeiling = true;
-            }
+        // Check if the player is horizontally within the platform bounds
+        const horizontallyAligned = playerBounds.right > platformBounds.left && playerBounds.left < platformBounds.right;
+
+        // Check for landing on top of the platform
+        if (playerVelocityY < 0 && horizontallyAligned &&
+            nextPlayerBounds.bottom <= platformBounds.top && playerBounds.bottom >= platformBounds.top) {
+            // Stop at the platform's top and reset vertical velocity
+            player.position.y = platformBounds.top + player.geometry.parameters.height / 2;
+            playerVelocityY = 0;
+            onGround = true;
+        }
+        // Check for hitting the platform from below
+        else if (playerVelocityY > 0 && horizontallyAligned &&
+            nextPlayerBounds.top >= platformBounds.bottom && playerBounds.top <= platformBounds.bottom) {
+            // Stop at the platform's bottom and reset vertical velocity
+            player.position.y = platformBounds.bottom - player.geometry.parameters.height / 2;
+            playerVelocityY = 0;
+            hitCeiling = true;
         }
     }
 
-    // If no collision, apply vertical movement
+    // Apply the vertical movement if no collisions detected
     if (!onGround && !hitCeiling) {
         player.position.y = nextY;
     }
 
-    // Prevent falling below the map
+    // Prevent player from falling below the map bounds
     if (player.position.y < mapBounds.bottom) {
         player.position.y = mapBounds.bottom;
         playerVelocityY = 0;
         onGround = true;
     }
 
+    // Check claw collection
     checkClaws(scene);
-
-    // Apply gravity
-    playerVelocityY += gravity;
-    player.position.y += playerVelocityY;
-
-    // Collision detection and platform landing
-    platforms.forEach(platform => {
-      if (player.position.y <= platform.position.y + platform.geometry.parameters.height / 2 &&
-        player.position.y > platform.position.y &&
-        player.position.x > platform.position.x - platform.geometry.parameters.width / 2 &&
-        player.position.x < platform.position.x + platform.geometry.parameters.width / 2) {
-      player.position.y = platform.position.y + platform.geometry.parameters.height / 2;  // Land on platform
-      playerVelocityY = 0;  // Reset velocity when on ground
-      onGround = true;
-    }})
 
     // Jump if space is pressed and player is on the ground
     if ((keys[' '] || keys['w'] || keys['ArrowUp']) && onGround) {
@@ -418,10 +396,11 @@ export function gameLoop(scene) {
     }
 
     // Attack Button
-    if((keys['y'] || keys['u'])){
+    if ((keys['y'] || keys['u'])) {
         attack(scene, clawLength);
     }
 }
+
 
 // Add getter for player health
 export function getPlayerHealth() {
