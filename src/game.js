@@ -180,7 +180,7 @@ export function gameLoop(scene) {
   }
 
   // Jump if space is pressed and player is on the ground
-  if ((keys[' '] || keys['w'])&& onGround) {
+  if ((keys[' '] || keys['w'] || keys['ArrowUp'])&& onGround) {
     playerVelocityY = jumpStrength;
   }
 
