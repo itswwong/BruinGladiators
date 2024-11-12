@@ -199,8 +199,13 @@ function attack(scene, clawLength){
                 top: claw.position.y + 0.05,
                 bottom: claw.position.y - 0.05
             };
-            
-            if(checkCollision(enemyBounds, clawBounds)){
+            const clawBounds2 = {
+              left: claw2.position.x - clawLength/2,
+              right: claw2.position.x + clawLength/2,
+              top: claw2.position.y + 0.05,
+              bottom: claw2.position.y - 0.05
+            };
+            if(checkCollision(enemyBounds, clawBounds) || checkCollision(enemyBounds, clawBounds2)){
                 console.log("hit enemy");
             }
         });
