@@ -21,8 +21,33 @@ let lastDamageTime = 0;
 const damageInterval = 1000; // 1 second in milliseconds
 let healthBar;
 
+// Collision helper functions
+function getObjectBounds(obj) {
+    const width = obj.geometry.parameters.width;
+    const height = obj.geometry.parameters.height;
+    return {
+        left: obj.position.x - width / 2,
+        right: obj.position.x + width / 2,
+        top: obj.position.y + height / 2,
+        bottom: obj.position.y - height / 2
+    };
+}
+
+function checkCollision(bounds1, bounds2) {
+    return !(
+        bounds1.left > bounds2.right ||
+        bounds1.right < bounds2.left ||
+        bounds1.top < bounds2.bottom ||
+        bounds1.bottom > bounds2.top
+    );
+}
+
 // Initialize the game
 export function initGame(scene) {
+  // Reset health on game init
+  playerHealth = 100;
+  lastDamageTime = 0;
+
   // Create player
   const playerGeometry = new THREE.PlaneGeometry(0.5, 0.5);
   const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
@@ -35,7 +60,6 @@ export function initGame(scene) {
 
   // Create ground platform
   createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
-
 
   // Create floating platforms
   createPlatform(scene, -3, -3, 2, 0.5);
@@ -120,15 +144,24 @@ function attack(scene, clawLength){
 function handleDamage() {
   const currentTime = Date.now();
   if (currentTime - lastDamageTime >= damageInterval) {
-    playerHealth = Math.max(0, playerHealth - 10);
+    playerHealth = Math.max(0, playerHealth - 10); // Reduce by 1 every second (10 per 10 seconds)
     lastDamageTime = currentTime;
     
-    // Update health bar width from the right side only
+    // Update health bar width
     healthBar.scale.x = playerHealth / 100;
+    
+    // Update the UI with current health
+    const hpText = document.getElementById('hpText');
+    if (hpText) {
+      hpText.textContent = `${playerHealth} / 100`;
+    }
     
     if (playerHealth <= 0) {
       console.log("Game Over!");
-      // Add game over logic here
+      const gameOverScreen = document.getElementById('gameOverScreen');
+      if (gameOverScreen) {
+        gameOverScreen.style.display = 'flex';
+      }
     }
   }
 }
@@ -146,31 +179,47 @@ export function gameLoop(scene) {
   }
 
   // Check if the player is touching an enemy's hit box
-  // If so, they should take damage
   enemies.forEach(enemy => {
     const dist = player.position.distanceTo(enemy.position);
     if(dist < 1){
       console.log("enemy touching player");
       handleDamage();
     }
-  })
+  });
 
   // Apply gravity
   playerVelocityY += gravity;
-  player.position.y += playerVelocityY;
+  
+  // Calculate next position
+  const nextY = player.position.y + playerVelocityY;
+  
+  // Get current player bounds for next position
+  const playerBounds = getObjectBounds(player);
+  playerBounds.bottom = nextY - player.geometry.parameters.height / 2;
+  playerBounds.top = nextY + player.geometry.parameters.height / 2;
 
-  // Collision detection and platform landing
+  // Check platform collisions
   let onGround = false;
-  platforms.forEach(platform => {
-    if (player.position.y <= platform.position.y + platform.geometry.parameters.height / 2 &&
-        player.position.y > platform.position.y &&
-        player.position.x > platform.position.x - platform.geometry.parameters.width / 2 &&
-        player.position.x < platform.position.x + platform.geometry.parameters.width / 2) {
-      player.position.y = platform.position.y + platform.geometry.parameters.height / 2;  // Land on platform
-      playerVelocityY = 0;  // Reset velocity when on ground
-      onGround = true;
+  for (const platform of platforms) {
+    const platformBounds = getObjectBounds(platform);
+    
+    if (checkCollision(playerBounds, platformBounds)) {
+      if (playerVelocityY < 0) { // Moving down
+        player.position.y = platformBounds.top + player.geometry.parameters.height / 2;
+        playerVelocityY = 0;
+        onGround = true;
+        break;
+      } else if (playerVelocityY > 0) { // Moving up
+        player.position.y = platformBounds.bottom - player.geometry.parameters.height / 2;
+        playerVelocityY = 0;
+      }
     }
-  });
+  }
+
+  // If no collision, apply vertical movement
+  if (!onGround) {
+    player.position.y = nextY;
+  }
 
   // Prevent falling below the map
   if (player.position.y < mapBounds.bottom) {
@@ -180,7 +229,7 @@ export function gameLoop(scene) {
   }
 
   // Jump if space is pressed and player is on the ground
-  if ((keys[' '] || keys['w'] || keys['ArrowUp'])&& onGround) {
+  if ((keys[' '] || keys['w'] || keys['ArrowUp']) && onGround) {
     playerVelocityY = jumpStrength;
   }
 
@@ -189,4 +238,9 @@ export function gameLoop(scene) {
     console.log("attack");
     attack(scene, clawLength);
   }
+}
+
+// Add getter for player health
+export function getPlayerHealth() {
+  return playerHealth;
 }
