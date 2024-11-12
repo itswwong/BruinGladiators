@@ -15,6 +15,12 @@ let facingRight = true;
 // length, material, and mesh of claw
 let clawLength = 3;
 
+// Add health-related variables
+let playerHealth = 100;
+let lastDamageTime = 0;
+const damageInterval = 1000; // 1 second in milliseconds
+let healthBar;
+
 // Initialize the game
 export function initGame(scene) {
   // Create player
@@ -34,6 +40,18 @@ export function initGame(scene) {
   // Create floating platforms
   createPlatform(scene, -3, -3, 2, 0.5);
   createPlatform(scene, 3, -2, 2, 0.5);
+
+  // Create health bar
+  const healthBarGeometry = new THREE.PlaneGeometry(2, 0.2);
+  const healthBarMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  healthBar = new THREE.Mesh(healthBarGeometry, healthBarMaterial);
+  
+  // Set the pivot point to the left side of the health bar
+  healthBarGeometry.translate(1, 0, 0);
+  
+  // Position health bar in top-left corner of the screen
+  healthBar.position.set(-8, 4, 1);
+  scene.add(healthBar);
 
   // Handle keyboard input
   document.addEventListener('keydown', (event) => keys[event.key] = true);
@@ -98,6 +116,23 @@ function attack(scene, clawLength){
   }
 }
 
+// Add damage handling function
+function handleDamage() {
+  const currentTime = Date.now();
+  if (currentTime - lastDamageTime >= damageInterval) {
+    playerHealth = Math.max(0, playerHealth - 10);
+    lastDamageTime = currentTime;
+    
+    // Update health bar width from the right side only
+    healthBar.scale.x = playerHealth / 100;
+    
+    if (playerHealth <= 0) {
+      console.log("Game Over!");
+      // Add game over logic here
+    }
+  }
+}
+
 // Game loop logic, to be called in animate
 export function gameLoop(scene) {
   // Horizontal movement
@@ -116,6 +151,7 @@ export function gameLoop(scene) {
     const dist = player.position.distanceTo(enemy.position);
     if(dist < 1){
       console.log("enemy touching player");
+      handleDamage();
     }
   })
 
