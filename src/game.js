@@ -1,18 +1,27 @@
 import * as THREE from 'three';
 import { distance } from 'three/webgpu';
 
-let player, platforms = [], keys = {}, enemies = [];
+let player, platforms = [], keys = {}, enemies = [], doubleClaws = [], fastClaws = [], twoSidedClaws = [];
 let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
 const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
 const mapBounds = { left: -10, right: 10, bottom: -5 }; // Define map boundaries
 
 let canAttack = true;
-const cooldown = 1000;
+let cooldown = 1000;
 let lastAttack = 0;
 let facingRight = true;
 
+// The possible claws besides the default one are:
+// 1. A claw with double the range of the default
+// 2. A claw with half the cooldown of the default
+// 3. A claw that allows the player to attack in both directions 
+let doubleClawEnabled = false;
+let fastClawEnabled = false;
+let twoSidedClawEnabled = false;
+
 // length, material, and mesh of claw
+// The default length is 3
 let clawLength = 3;
 
 // Add health-related variables
@@ -33,6 +42,11 @@ export function initGame(scene) {
   // Create dummy to test the player's combat
   createEnemy(scene, 2, -3.8);
 
+  // Create three different collectible claws, one of each type
+  createClaw(scene, -3.5, -2.5, 1);
+  createClaw(scene, 3.5, -1.5, 2);
+  createClaw(scene, 2.2, -1.5, 3);
+
   // Create ground platform
   createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
 
@@ -40,6 +54,7 @@ export function initGame(scene) {
   // Create floating platforms
   createPlatform(scene, -3, -3, 2, 0.5);
   createPlatform(scene, 3, -2, 2, 0.5);
+  createPlatform(scene, 0, -2, 2, 0.5);
 
   // Create health bar
   const healthBarGeometry = new THREE.PlaneGeometry(2, 0.2);
@@ -56,6 +71,34 @@ export function initGame(scene) {
   // Handle keyboard input
   document.addEventListener('keydown', (event) => keys[event.key] = true);
   document.addEventListener('keyup', (event) => keys[event.key] = false);
+}
+
+// Types:
+// 1 for the double range claw
+// 2 for the quick attack claw
+function createClaw(scene, xCoord, yCoord, type){
+  const clawG = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+  if (type == 1){
+    const clawMat = new THREE.MeshBasicMaterial({color: 0xff0000});
+    const clawMesh = new THREE.Mesh(clawG, clawMat);
+    clawMesh.position.set(xCoord, yCoord, 0);
+    doubleClaws.push(clawMesh);
+    scene.add(clawMesh);
+  }
+  if(type == 2){
+    const clawMat = new THREE.MeshBasicMaterial({color: 0xffff00});
+    const clawMesh = new THREE.Mesh(clawG, clawMat);
+    clawMesh.position.set(xCoord, yCoord, 0);
+    fastClaws.push(clawMesh);
+    scene.add(clawMesh);
+  }
+  if(type == 3){
+    const clawMat = new THREE.MeshBasicMaterial({color: 0xff00f0});
+    const clawMesh = new THREE.Mesh(clawG, clawMat);
+    clawMesh.position.set(xCoord, yCoord, 0);
+    twoSidedClaws.push(clawMesh);
+    scene.add(clawMesh);
+  }
 }
 
 // Create enemies at the specified coordinates for the given scene
@@ -85,6 +128,7 @@ function attack(scene, clawLength){
     canAttack = false;
     lastAttack = time;
 
+    // Create the claw to be displayed when the player attacks
     const clawG = new THREE.CylinderGeometry(0.05, 0.05, clawLength, 8);
     const clawMat = new THREE.MeshBasicMaterial({color: 0xff0000});
     const claw = new THREE.Mesh(clawG, clawMat);
@@ -92,25 +136,57 @@ function attack(scene, clawLength){
     claw.position.set(player.position.x + (facingRight ? 0.5 : -0.5), player.position.y, player.position.z);
     claw.rotation.z = Math.PI / 2;
 
+    // Set the positions of the first and second claws
+    // Note: the second claw is only displayed if the player has the double sided claw powerup
+    let claw2Pos = player.position.x;
     if(facingRight){
-      claw.position.x += 1.5;
+      if(doubleClawEnabled){
+        claw.position.x += 3.0;
+      }
+      else{
+        claw.position.x += 1.5;
+      }
+      claw2Pos -= 2;
     }
     else{
-      claw.position.x -= 1.5;
+      if(doubleClawEnabled){
+        claw.position.x -= 3.0;
+      }
+      else{
+        claw.position.x -= 1.5;
+      }
+      claw2Pos += 2;
     }
 
+    // Add the second claw to the scene if the player has the corresponding powerup
+    const claw2 = claw.clone();
+    if(twoSidedClawEnabled){
+      claw2.position.set(claw2Pos, player.position.y, player.position.z);
+      scene.add(claw2);
+    }
     scene.add(claw);
     console.log("claw now attacking");
 
+    // Register that the enemy has been hit by the claw
     enemies.forEach(enemy => {
       const dist = claw.position.distanceTo(enemy.position);
-      if(dist < 1){
+      if(twoSidedClawEnabled && dist < 2 || dist < 1){
         console.log("hit enemy");
+      }
+      if(twoSidedClawEnabled){
+        const dist2 = claw2.position.distanceTo(enemy.position);
+        if(dist2 < 1){
+          console.log("hit enemy");
+        }
       }
     })
 
+    // Stop rendering the claw when the attack is done
     setTimeout(() => {
       scene.remove(claw);
+      if(twoSidedClawEnabled){
+        scene.remove(claw2);
+      }
       canAttack = true;
     }, 200);
   }
@@ -131,6 +207,62 @@ function handleDamage() {
       // Add game over logic here
     }
   }
+}
+
+function checkClaws(scene){
+  // Check if the player is touching a claw's hit box
+  // If so, the claw should disappear and give them its ability
+  // Abilities cannot stack; the player can only have one ability on them at once
+  doubleClaws.forEach(claw => {
+    const dist = player.position.distanceTo(claw.position);
+    if(dist < 1){
+      console.log("Collected double claw");
+      scene.remove(claw);
+      doubleClawEnabled = true;
+      fastClawEnabled = false;
+      twoSidedClawEnabled = false;
+
+      clawLength = 6;
+      cooldown = 1000;
+
+      let index = doubleClaws.indexOf(claw);
+      doubleClaws.splice(index, 1);
+    }
+  })
+
+  fastClaws.forEach(claw => {
+    const dist = player.position.distanceTo(claw.position);
+    if(dist < 1){
+      console.log("Collected fast claw");
+      scene.remove(claw);
+      doubleClawEnabled = false;
+      fastClawEnabled = true;
+      twoSidedClawEnabled = false;
+
+      clawLength = 3;
+      cooldown = 500;
+
+      let index = fastClaws.indexOf(claw);
+      fastClaws.splice(index, 1);
+    }
+  })
+
+  twoSidedClaws.forEach(claw => {
+    const dist = player.position.distanceTo(claw.position);
+    if(dist < 1){
+      console.log("Collected two sided claw");
+      scene.remove(claw);
+      doubleClawEnabled = false;
+      fastClawEnabled = false;
+      twoSidedClawEnabled = true;
+
+      clawLength = 3;
+      cooldown = 1000;
+      
+      let index = twoSidedClaws.indexOf(claw);
+      twoSidedClaws.splice(index, 1);
+    }
+  })
 }
 
 // Game loop logic, to be called in animate
@@ -154,6 +286,8 @@ export function gameLoop(scene) {
       handleDamage();
     }
   })
+
+  checkClaws(scene);
 
   // Apply gravity
   playerVelocityY += gravity;
