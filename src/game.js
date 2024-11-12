@@ -140,7 +140,8 @@ function createEnemy(scene, xCoord, yCoord){
     const enemyMat = new THREE.MeshBasicMaterial({color: 0xffffff});
     const enemyMesh = new THREE.Mesh(enemyG, enemyMat);
     enemyMesh.position.set(xCoord, yCoord, 0);
-    enemies.push(enemyMesh);
+    const enemy = new Enemy(enemyMesh);
+    enemies.push(enemy);
     scene.add(enemyMesh);
 }
 
@@ -205,7 +206,7 @@ function attack(scene, clawLength){
 
     // Register that the enemy has been hit by the claw
     enemies.forEach(enemy => {
-            const enemyBounds = getObjectBounds(enemy);
+            const enemyBounds = getObjectBounds(enemy.mesh);
             const clawBounds = {
                 left: claw.position.x - clawLength/2,
                 right: claw.position.x + clawLength/2,
@@ -329,7 +330,7 @@ export function gameLoop(scene) {
     // Check for enemy collisions using hitboxes
     enemies.forEach(enemy => {
         const playerBounds = getObjectBounds(player);
-        const enemyBounds = getObjectBounds(enemy);
+        const enemyBounds = getObjectBounds(enemy.mesh);
         
         if (checkCollision(playerBounds, enemyBounds)) {
             handleDamage();
@@ -399,10 +400,61 @@ export function gameLoop(scene) {
     if ((keys['y'] || keys['u'])) {
         attack(scene, clawLength);
     }
+
+    // Update enemy positions
+    updateEnemies();
 }
 
 
 // Add getter for player health
 export function getPlayerHealth() {
     return playerHealth;
+}
+
+// Add these variables near the top with other global variables
+const ENEMY_SPEED = 0.02;
+const ENEMY_DETECTION_RANGE = 3;
+const ENEMY_PATROL_RANGE = 2;
+
+// Add this new class for enemy management
+class Enemy {
+  constructor(mesh) {
+    this.mesh = mesh;
+    this.startX = mesh.position.x;
+    this.direction = 1;
+    this.state = 'patrol'; // 'patrol' or 'chase'
+  }
+}
+
+// Update the enemies array to store Enemy objects instead of just meshes
+// let enemies = [];
+
+// Add this new function to handle enemy movement
+function updateEnemies() {
+    if (!player) return;
+
+    enemies.forEach(enemy => {
+        const distanceToPlayer = enemy.mesh.position.distanceTo(player.position);
+        
+        // Check if player is within detection range
+        if (distanceToPlayer < ENEMY_DETECTION_RANGE) {
+            enemy.state = 'chase';
+        } else {
+            enemy.state = 'patrol';
+        }
+
+        if (enemy.state === 'chase') {
+            // Move towards player
+            const directionX = player.position.x - enemy.mesh.position.x;
+            enemy.mesh.position.x += Math.sign(directionX) * ENEMY_SPEED;
+        } else {
+            // Patrol back and forth
+            enemy.mesh.position.x += ENEMY_SPEED * enemy.direction;
+            
+            // Check if enemy has reached patrol limit
+            if (Math.abs(enemy.mesh.position.x - enemy.startX) > ENEMY_PATROL_RANGE) {
+                enemy.direction *= -1; // Reverse direction
+            }
+        }
+    });
 }
