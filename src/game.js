@@ -52,6 +52,10 @@ function checkCollision(bounds1, bounds2) {
     );
 }
 
+// Add at the top with other variables
+let lastSpawnTime = Date.now();
+const SPAWN_INTERVAL = 10000; // 10 seconds in milliseconds
+
 // Initialize the game
 export function initGame(scene) {
     // Reset health on game init
@@ -136,10 +140,10 @@ function createClaw(scene, xCoord, yCoord, type){
 
 // Create enemies at the specified coordinates for the given scene
 function createEnemy(scene, xCoord, yCoord){
-    const enemyG = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    const enemyG = new THREE.BoxGeometry(0.5, 1, 0.5);
     const enemyMat = new THREE.MeshBasicMaterial({color: 0xffffff});
     const enemyMesh = new THREE.Mesh(enemyG, enemyMat);
-    enemyMesh.position.set(xCoord, yCoord, 0);
+    enemyMesh.position.set(xCoord, yCoord + 0.3, 0);
     const enemy = new Enemy(enemyMesh);
     enemies.push(enemy);
     scene.add(enemyMesh);
@@ -403,6 +407,15 @@ export function gameLoop(scene) {
 
     // Update enemy positions
     updateEnemies();
+
+    // Check if it's time to spawn a new enemy
+    const currentTime = Date.now();
+    if (currentTime - lastSpawnTime > SPAWN_INTERVAL) {
+        // Spawn enemy at a random x position between map bounds
+        const randomX = Math.random() * (mapBounds.right - mapBounds.left) + mapBounds.left;
+        createEnemy(scene, randomX, -3.8);
+        lastSpawnTime = currentTime;
+    }
 }
 
 
