@@ -457,16 +457,24 @@ function updateEnemies() {
         }
 
         if (enemy.state === 'chase') {
-            // Move towards player
+            // Move towards player, but respect map bounds
             const directionX = player.position.x - enemy.mesh.position.x;
-            enemy.mesh.position.x += Math.sign(directionX) * ENEMY_SPEED;
-        } else {
-            // Patrol back and forth
-            enemy.mesh.position.x += ENEMY_SPEED * enemy.direction;
+            const newX = enemy.mesh.position.x + Math.sign(directionX) * ENEMY_SPEED;
             
-            // Check if enemy has reached patrol limit
-            if (Math.abs(enemy.mesh.position.x - enemy.startX) > ENEMY_PATROL_RANGE) {
+            // Only move if within bounds
+            if (newX >= mapBounds.left && newX <= mapBounds.right) {
+                enemy.mesh.position.x = newX;
+            }
+        } else {
+            // Patrol back and forth within bounds
+            const newX = enemy.mesh.position.x + ENEMY_SPEED * enemy.direction;
+            
+            // Check if enemy would exceed map bounds or patrol range
+            if (newX <= mapBounds.left || newX >= mapBounds.right || 
+                Math.abs(newX - enemy.startX) > ENEMY_PATROL_RANGE) {
                 enemy.direction *= -1; // Reverse direction
+            } else {
+                enemy.mesh.position.x = newX;
             }
         }
     });
