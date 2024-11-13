@@ -85,7 +85,7 @@ export function initGame(scene) {
     createClaw(scene, 2.2, -1.5, 3);
 
     // Create dummy to test the player's combat
-    createEnemy(scene, 2, -3.5);
+    createEnemy(scene, 2, -3.8);
 
     // Create ground platform
     createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
@@ -142,25 +142,22 @@ function createClaw(scene, xCoord, yCoord, type){
 
 // Create enemies at the specified coordinates for the given scene
 function createEnemy(scene, xCoord, yCoord) {
-    // Load the texture for the enemy
+    // Load Spartan texture and apply it to enemy material
     loader.load('assets/spartan.png', (texture) => {
-        // Adjust texture filtering to prevent blurring, especially if it’s pixel art
-        texture.magFilter = THREE.NearestFilter;
-        texture.minFilter = THREE.LinearFilter;
-
-        // Create a material using the loaded texture
+        texture.magFilter = THREE.NearestFilter; // Keeps pixelation if the texture is pixel art
+        
         const enemyMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        const enemyGeometry = new THREE.PlaneGeometry(1, 1); // Adjust size as needed for the enemy
+        const enemyGeometry = new THREE.PlaneGeometry(1, 1); // Adjust dimensions to suit the image size
 
-        // Create the enemy mesh with the geometry and texture material
         const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
-        enemyMesh.position.set(xCoord, yCoord, 0);
+        enemyMesh.position.set(xCoord, yCoord + 0.3, 0);
 
-        // Add the enemy to the list and the scene
-        enemies.push(enemyMesh);
+        const enemy = new Enemy(enemyMesh);
+        enemies.push(enemy);
         scene.add(enemyMesh);
     });
 }
+
 
 // Function to create platforms
 function createPlatform(scene, x, y, width, height) {
