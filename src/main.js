@@ -43,7 +43,7 @@ style.textContent = `
     position: fixed;
     top: 56px;
     left: 120px;
-    color: white;
+    color: black;
     font-family: Arial, sans-serif;
     font-size: 16px;
     display: flex;
@@ -90,7 +90,7 @@ style.textContent = `
     position: fixed;
     top: 20px;
     left: 20px;
-    color: white;
+    color: black;
     font-family: Arial, sans-serif;
     font-size: 24px;
     user-select: none;
