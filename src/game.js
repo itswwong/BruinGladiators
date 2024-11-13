@@ -54,10 +54,12 @@ function checkCollision(bounds1, bounds2) {
 
 // Add at the top with other variables
 let lastSpawnTime = Date.now();
-const SPAWN_INTERVAL = 10000; // 10 seconds in milliseconds
+const SPAWN_INTERVAL = 1000; // 10 seconds in milliseconds
+let score = 0;
 
 // Initialize the game
 export function initGame(scene) {
+    score = 0; // Reset score when game starts
     // Reset health on game init
     playerHealth = 100;
     lastDamageTime = 0;
@@ -209,7 +211,7 @@ function attack(scene, clawLength){
     console.log("claw now attacking");
 
     // Register that the enemy has been hit by the claw
-    enemies.forEach(enemy => {
+    enemies.forEach((enemy, index) => {
             const enemyBounds = getObjectBounds(enemy.mesh);
             const clawBounds = {
                 left: claw.position.x - clawLength/2,
@@ -225,6 +227,10 @@ function attack(scene, clawLength){
             };
             if(checkCollision(enemyBounds, clawBounds) || checkCollision(enemyBounds, clawBounds2)){
                 console.log("hit enemy");
+                scene.remove(enemy.mesh);  // Remove enemy from scene
+                enemies.splice(index, 1);  // Remove enemy from array
+                score++; // Increment score when enemy is defeated
+                updateScore(); // Update the score display
             }
         });
 
@@ -478,4 +484,12 @@ function updateEnemies() {
             }
         }
     });
+}
+
+// Add new function to update score display
+function updateScore() {
+    const scoreElement = document.getElementById('scoreText');
+    if (scoreElement) {
+        scoreElement.textContent = `Score: ${score}`;
+    }
 }
