@@ -79,7 +79,7 @@ export function initGame(scene) {
     createClaw(scene, 2.2, -1.5, 3);
 
     // Create dummy to test the player's combat
-    createEnemy(scene, 2, -3.8);
+    createEnemy(scene, 2, -3.5);
 
     // Create ground platform
     createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
@@ -135,14 +135,27 @@ function createClaw(scene, xCoord, yCoord, type){
 }
 
 // Create enemies at the specified coordinates for the given scene
-function createEnemy(scene, xCoord, yCoord){
-    const enemyG = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    const enemyMat = new THREE.MeshBasicMaterial({color: 0xffffff});
-    const enemyMesh = new THREE.Mesh(enemyG, enemyMat);
-    enemyMesh.position.set(xCoord, yCoord, 0);
-    enemies.push(enemyMesh);
-    scene.add(enemyMesh);
+function createEnemy(scene, xCoord, yCoord) {
+    // Load the texture for the enemy
+    loader.load('assets/spartan.png', (texture) => {
+        // Adjust texture filtering to prevent blurring, especially if it’s pixel art
+        texture.magFilter = THREE.NearestFilter;
+        texture.minFilter = THREE.LinearFilter;
+
+        // Create a material using the loaded texture
+        const enemyMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        const enemyGeometry = new THREE.PlaneGeometry(1, 1); // Adjust size as needed for the enemy
+
+        // Create the enemy mesh with the geometry and texture material
+        const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
+        enemyMesh.position.set(xCoord, yCoord, 0);
+
+        // Add the enemy to the list and the scene
+        enemies.push(enemyMesh);
+        scene.add(enemyMesh);
+    });
 }
+
 
 // Function to create platforms
 function createPlatform(scene, x, y, width, height) {
