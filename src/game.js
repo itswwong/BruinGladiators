@@ -52,8 +52,14 @@ function checkCollision(bounds1, bounds2) {
     );
 }
 
+// Add at the top with other variables
+let lastSpawnTime = Date.now();
+const SPAWN_INTERVAL = 1000; // 10 seconds in milliseconds
+let score = 0;
+
 // Initialize the game
 export function initGame(scene) {
+    score = 0; // Reset score when game starts
     // Reset health on game init
     playerHealth = 100;
     lastDamageTime = 0;
@@ -156,7 +162,6 @@ function createEnemy(scene, xCoord, yCoord) {
     });
 }
 
-
 // Function to create platforms
 function createPlatform(scene, x, y, width, height) {
     const geometry = new THREE.PlaneGeometry(width, height);
@@ -217,8 +222,8 @@ function attack(scene, clawLength){
     console.log("claw now attacking");
 
     // Register that the enemy has been hit by the claw
-    enemies.forEach(enemy => {
-            const enemyBounds = getObjectBounds(enemy);
+    enemies.forEach((enemy, index) => {
+            const enemyBounds = getObjectBounds(enemy.mesh);
             const clawBounds = {
                 left: claw.position.x - clawLength/2,
                 right: claw.position.x + clawLength/2,
@@ -233,6 +238,10 @@ function attack(scene, clawLength){
             };
             if(checkCollision(enemyBounds, clawBounds) || checkCollision(enemyBounds, clawBounds2)){
                 console.log("hit enemy");
+                scene.remove(enemy.mesh);  // Remove enemy from scene
+                enemies.splice(index, 1);  // Remove enemy from array
+                score++; // Increment score when enemy is defeated
+                updateScore(); // Update the score display
             }
         });
 
@@ -342,7 +351,7 @@ export function gameLoop(scene) {
     // Check for enemy collisions using hitboxes
     enemies.forEach(enemy => {
         const playerBounds = getObjectBounds(player);
-        const enemyBounds = getObjectBounds(enemy);
+        const enemyBounds = getObjectBounds(enemy.mesh);
         
         if (checkCollision(playerBounds, enemyBounds)) {
             handleDamage();
@@ -412,10 +421,86 @@ export function gameLoop(scene) {
     if ((keys['y'] || keys['u'])) {
         attack(scene, clawLength);
     }
+
+    // Update enemy positions
+    updateEnemies();
+
+    // Check if it's time to spawn a new enemy
+    const currentTime = Date.now();
+    if (currentTime - lastSpawnTime > SPAWN_INTERVAL) {
+        // Spawn enemy at a random x position between map bounds
+        const randomX = Math.random() * (mapBounds.right - mapBounds.left) + mapBounds.left;
+        createEnemy(scene, randomX, -3.8);
+        lastSpawnTime = currentTime;
+    }
 }
 
 
 // Add getter for player health
 export function getPlayerHealth() {
     return playerHealth;
+}
+
+// Add these variables near the top with other global variables
+const ENEMY_SPEED = 0.02;
+const ENEMY_DETECTION_RANGE = 3;
+const ENEMY_PATROL_RANGE = 2;
+
+// Add this new class for enemy management
+class Enemy {
+  constructor(mesh) {
+    this.mesh = mesh;
+    this.startX = mesh.position.x;
+    this.direction = 1;
+    this.state = 'patrol'; // 'patrol' or 'chase'
+  }
+}
+
+// Update the enemies array to store Enemy objects instead of just meshes
+// let enemies = [];
+
+// Add this new function to handle enemy movement
+function updateEnemies() {
+    if (!player) return;
+
+    enemies.forEach(enemy => {
+        const distanceToPlayer = enemy.mesh.position.distanceTo(player.position);
+        
+        // Check if player is within detection range
+        if (distanceToPlayer < ENEMY_DETECTION_RANGE) {
+            enemy.state = 'chase';
+        } else {
+            enemy.state = 'patrol';
+        }
+
+        if (enemy.state === 'chase') {
+            // Move towards player, but respect map bounds
+            const directionX = player.position.x - enemy.mesh.position.x;
+            const newX = enemy.mesh.position.x + Math.sign(directionX) * ENEMY_SPEED;
+            
+            // Only move if within bounds
+            if (newX >= mapBounds.left && newX <= mapBounds.right) {
+                enemy.mesh.position.x = newX;
+            }
+        } else {
+            // Patrol back and forth within bounds
+            const newX = enemy.mesh.position.x + ENEMY_SPEED * enemy.direction;
+            
+            // Check if enemy would exceed map bounds or patrol range
+            if (newX <= mapBounds.left || newX >= mapBounds.right || 
+                Math.abs(newX - enemy.startX) > ENEMY_PATROL_RANGE) {
+                enemy.direction *= -1; // Reverse direction
+            } else {
+                enemy.mesh.position.x = newX;
+            }
+        }
+    });
+}
+
+// Add new function to update score display
+function updateScore() {
+    const scoreElement = document.getElementById('scoreText');
+    if (scoreElement) {
+        scoreElement.textContent = `Score: ${score}`;
+    }
 }
