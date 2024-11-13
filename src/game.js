@@ -475,6 +475,9 @@ function updateEnemies() {
             const directionX = player.position.x - enemy.mesh.position.x;
             const newX = enemy.mesh.position.x + Math.sign(directionX) * ENEMY_SPEED;
             
+            // Flip sprite based on chase direction
+            enemy.mesh.scale.x = directionX > 0 ? -1 : 1;
+            
             // Only move if within bounds
             if (newX >= mapBounds.left && newX <= mapBounds.right) {
                 enemy.mesh.position.x = newX;
@@ -482,6 +485,9 @@ function updateEnemies() {
         } else {
             // Patrol back and forth within bounds
             const newX = enemy.mesh.position.x + ENEMY_SPEED * enemy.direction;
+            
+            // Flip sprite based on patrol direction
+            enemy.mesh.scale.x = enemy.direction > 0 ? -1 : 1;
             
             // Check if enemy would exceed map bounds or patrol range
             if (newX <= mapBounds.left || newX >= mapBounds.right || 
