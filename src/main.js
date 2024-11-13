@@ -86,6 +86,15 @@ style.textContent = `
   #restartButton:hover {
     background-color: #ff6666;
   }
+  #scoreContainer {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+    user-select: none;
+  }
 `;
 document.head.appendChild(style);
 
@@ -123,6 +132,12 @@ gameOverScreen.innerHTML = `
   <button id="restartButton">Restart Game</button>
 `;
 document.body.appendChild(gameOverScreen);
+
+// Create score display element (add after other UI elements)
+const scoreContainer = document.createElement('div');
+scoreContainer.id = 'scoreContainer';
+scoreContainer.innerHTML = `<div id="scoreText">Score: 0</div>`;
+document.body.appendChild(scoreContainer);
 
 // Add restart functionality
 document.getElementById('restartButton').addEventListener('click', () => {
