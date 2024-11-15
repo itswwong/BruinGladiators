@@ -80,9 +80,9 @@ export function initGame(scene) {
     });
     
     // Create three different collectible claws, one of each type
-    createClaw(scene, -3.5, -2, 1);
-    createClaw(scene, 4.8, -1, 2);
-    createClaw(scene, 5.5, -1, 3);
+    createClaw(scene, -3.5, -1.75, 1);
+    createClaw(scene, 2, -0.75, 2);
+    createClaw(scene, 5.5, -0.75, 3);
 
     // Create dummy to test the player's combat
     createEnemy(scene, 2, -3.8);
@@ -115,28 +115,48 @@ export function initGame(scene) {
 // Types:
 // 1 for the double range claw
 // 2 for the quick attack claw
-function createClaw(scene, xCoord, yCoord, type){
-  const clawG = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-  if (type == 1){
-    const clawMat = new THREE.MeshBasicMaterial({color: 0xff0000});
-    const clawMesh = new THREE.Mesh(clawG, clawMat);
-    clawMesh.position.set(xCoord, yCoord, 0);
-    doubleClaws.push(clawMesh);
-    scene.add(clawMesh);
+function createClaw(scene, xCoord, yCoord, type) {
+  const clawWidth = 1; // Default claw width
+  const clawHeight = 1; // Default claw height
+
+  if (type == 1) {
+    loader.load('assets/long_claw.png', (texture) => {
+      texture.magFilter = THREE.NearestFilter;
+
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const geometry = new THREE.PlaneGeometry(clawWidth, clawHeight);
+
+      const clawMesh = new THREE.Mesh(geometry, material);
+      clawMesh.position.set(xCoord, yCoord, 0);
+      doubleClaws.push(clawMesh);
+      scene.add(clawMesh);
+    });
   }
-  if(type == 2){
-    const clawMat = new THREE.MeshBasicMaterial({color: 0xffff00});
-    const clawMesh = new THREE.Mesh(clawG, clawMat);
-    clawMesh.position.set(xCoord, yCoord, 0);
-    fastClaws.push(clawMesh);
-    scene.add(clawMesh);
+  if (type == 2) {
+    loader.load('assets/fast_claw.png', (texture) => {
+      texture.magFilter = THREE.NearestFilter;
+
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const geometry = new THREE.PlaneGeometry(clawWidth, clawHeight);
+
+      const clawMesh = new THREE.Mesh(geometry, material);
+      clawMesh.position.set(xCoord, yCoord, 0);
+      fastClaws.push(clawMesh);
+      scene.add(clawMesh);
+    });
   }
-  if(type == 3){
-    const clawMat = new THREE.MeshBasicMaterial({color: 0xff00f0});
-    const clawMesh = new THREE.Mesh(clawG, clawMat);
-    clawMesh.position.set(xCoord, yCoord, 0);
-    twoSidedClaws.push(clawMesh);
-    scene.add(clawMesh);
+  if (type == 3) {
+    loader.load('assets/dual_claws.png', (texture) => {
+      texture.magFilter = THREE.NearestFilter;
+
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const geometry = new THREE.PlaneGeometry(clawWidth, clawHeight);
+
+      const clawMesh = new THREE.Mesh(geometry, material);
+      clawMesh.position.set(xCoord, yCoord, 0);
+      twoSidedClaws.push(clawMesh);
+      scene.add(clawMesh);
+    });
   }
 }
 
