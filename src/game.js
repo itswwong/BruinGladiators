@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 const loader = new THREE.TextureLoader();
 
-let player, platforms = [], keys = {}, enemies = [], doubleClaws = [], fastClaws = [], twoSidedClaws = [];
+let player, platforms = [], keys = {}, enemies = [], doubleClaws = [], fastClaws = [], twoSidedClaws = [], fishes = [];
 let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
 const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
@@ -86,7 +86,8 @@ export function initGame(scene) {
 
     // Create dummy to test the player's combat
     createEnemy(scene, 2, -3.8);
-
+    //add a fish
+    createFish(scene, -2.0, -2);
     // Create ground platform
     createGround(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
 
@@ -140,6 +141,22 @@ function createClaw(scene, xCoord, yCoord, type){
   }
 }
 
+function createFish(scene, xCoord, yCoord){
+  // Load fish texture
+  loader.load('assets/fish.png', (texture) => {
+    texture.magFilter = THREE.NearestFilter; // Keep pixelated style if the sprite is pixel art
+    
+    const fishG = new THREE.PlaneGeometry(0.5, 0.5);
+    const fishMat = new THREE.MeshBasicMaterial({ 
+      map: texture,
+      transparent: true 
+    });
+    const fishMesh = new THREE.Mesh(fishG, fishMat);
+    fishMesh.position.set(xCoord, yCoord, 0);
+    fishes.push(fishMesh);
+    scene.add(fishMesh);
+  });
+}
 // Create enemies at the specified coordinates for the given scene
 function createEnemy(scene, xCoord, yCoord) {
     // Load Spartan texture and apply it to enemy material
@@ -321,6 +338,25 @@ function handleDamage() {
     }
 }
 
+function checkFish(scene){
+  fishes.forEach(fish => {
+    const dist = player.position.distanceTo(fish.position);
+    if(dist < 1){
+      console.log("Collected fish");
+      scene.remove(fish);
+      playerHealth = Math.min(100, playerHealth + 10);
+      const healthBar = scene.children.find(child => 
+        child.geometry?.type === 'PlaneGeometry' && 
+        child.material.color.getHex() === 0xff0000
+      );
+      if (healthBar) {
+        healthBar.scale.x = playerHealth / 100;
+      }
+      fishes.splice(fishes.indexOf(fish), 1);
+    }
+  })
+}
+
 function checkClaws(scene){
   // Check if the player is touching a claw's hit box
   // If so, the claw should disappear and give them its ability
@@ -452,6 +488,7 @@ export function gameLoop(scene) {
 
     // Check claw collection
     checkClaws(scene);
+    checkFish(scene);
 
     // Jump if space is pressed and player is on the ground
     if ((keys[' '] || keys['w'] || keys['ArrowUp']) && onGround) {
