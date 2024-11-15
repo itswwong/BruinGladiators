@@ -80,20 +80,20 @@ export function initGame(scene) {
     });
     
     // Create three different collectible claws, one of each type
-    createClaw(scene, -3.5, -2.5, 1);
-    createClaw(scene, 3.5, -1.5, 2);
-    createClaw(scene, 2.2, -1.5, 3);
+    createClaw(scene, -3.5, -2, 1);
+    createClaw(scene, 4.8, -1, 2);
+    createClaw(scene, 5.5, -1, 3);
 
     // Create dummy to test the player's combat
     createEnemy(scene, 2, -3.8);
 
     // Create ground platform
-    createPlatform(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
+    createGround(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
 
     // Create floating platforms
-    createPlatform(scene, -3, -3, 2, 0.5);
-    createPlatform(scene, 3, -2, 2, 0.5);
-    createPlatform(scene, 0, -2, 2, 0.5);
+    createPlatform(scene, -3, -2.5, 2, 0.5);
+    createPlatform(scene, 5, -1.5, 2, 0.5);
+    createPlatform(scene, 2, -1.5, 2, 0.5);
 
     // Create health bar
     const healthBarGeometry = new THREE.PlaneGeometry(2, 0.2);
@@ -161,97 +161,141 @@ function createEnemy(scene, xCoord, yCoord) {
 
 // Function to create platforms
 function createPlatform(scene, x, y, width, height) {
-    const geometry = new THREE.PlaneGeometry(width, height);
-    const material = new THREE.MeshBasicMaterial({ color: 0x654321 });
-    const platform = new THREE.Mesh(geometry, material);
-    platform.position.set(x, y, 0);
-    platforms.push(platform);
-    scene.add(platform);
+    // Load platform texture and apply it to platform material
+    loader.load('assets/platform.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        // texture.wrapT = THREE.RepeatWrapping;
+        
+        // Scale texture to fit the platform dimensions
+        // texture.repeat.set(width, height);
+
+        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        const geometry = new THREE.PlaneGeometry(width, height);
+
+        const platform = new THREE.Mesh(geometry, material);
+        platform.position.set(x, y, 0);
+        platforms.push(platform);
+        scene.add(platform);
+    });
 }
 
-// The rest of your game logic remains the same
+function createGround(scene, x, y, width, height) {
+    // Load platform texture and apply it to platform material
+    loader.load('assets/ground.png', (texture) => {
+      texture.magFilter = THREE.NearestFilter;
 
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const geometry = new THREE.PlaneGeometry(width, height);
 
-function attack(scene, clawLength){
+      const platform = new THREE.Mesh(geometry, material);
+      platform.position.set(x, y, 0);
+      platforms.push(platform);
+      scene.add(platform);
+    });
+}
+
+function attack(scene, clawLength) {
   let time = Date.now();
-  
-  if(canAttack && time - lastAttack >= cooldown){
+
+  if (canAttack && time - lastAttack >= cooldown) {
     canAttack = false;
     lastAttack = time;
 
-    // Create the claw to be displayed when the player attacks
-    const clawG = new THREE.CylinderGeometry(0.05, 0.05, clawLength, 8);
-    const clawMat = new THREE.MeshBasicMaterial({color: 0xff0000});
-    const claw = new THREE.Mesh(clawG, clawMat);
-    console.log("start attacking");
-    claw.position.set(player.position.x + (facingRight ? 0.5 : -0.5), player.position.y, player.position.z);
-    claw.rotation.z = Math.PI / 2;
+    // Load the claw texture
+    loader.load('assets/claw_animation.png', (clawTexture) => {
+      // Configure the texture for the main (first) claw
+      clawTexture.wrapS = THREE.ClampToEdgeWrapping;
+      clawTexture.wrapT = THREE.ClampToEdgeWrapping;
+      clawTexture.repeat.set(1, 1);  // Prevent repeating
 
-    // Set the positions of the first and second claws
-    // Note: the second claw is only displayed if the player has the double sided claw powerup
-    let claw2Pos = player.position.x;
-    if(facingRight){
-      if(doubleClawEnabled){
-        claw.position.x += 3.0;
+      // Flip texture for left-facing attacks
+      if (!facingRight) {
+        clawTexture.repeat.x = -1;  // Flip horizontally
+        clawTexture.offset.x = 1;   // Offset to correct position after flip
+      } else {
+        clawTexture.repeat.x = 1;
+        clawTexture.offset.x = 0;
       }
-      else{
-        claw.position.x += 1.5;
-      }
-      claw2Pos -= 2;
-    }
-    else{
-      if(doubleClawEnabled){
-        claw.position.x -= 3.0;
-      }
-      else{
-        claw.position.x -= 1.5;
-      }
-      claw2Pos += 2;
-    }
 
-    // Add the second claw to the scene if the player has the corresponding powerup
-    const claw2 = claw.clone();
-    if(twoSidedClawEnabled){
-      claw2.position.set(claw2Pos, player.position.y, player.position.z);
-      scene.add(claw2);
-    }
-    scene.add(claw);
-    console.log("claw now attacking");
+      // Create the claw material using the loaded texture
+      const clawMat = new THREE.MeshBasicMaterial({ map: clawTexture, transparent: true });
 
-    // Register that the enemy has been hit by the claw
-    enemies.forEach((enemy, index) => {
-            const enemyBounds = getObjectBounds(enemy.mesh);
-            const clawBounds = {
-                left: claw.position.x - clawLength/2,
-                right: claw.position.x + clawLength/2,
-                top: claw.position.y + 0.05,
-                bottom: claw.position.y - 0.05
-            };
-            const clawBounds2 = {
-              left: claw2.position.x - clawLength/2,
-              right: claw2.position.x + clawLength/2,
-              top: claw2.position.y + 0.05,
-              bottom: claw2.position.y - 0.05
-            };
-            if(checkCollision(enemyBounds, clawBounds) || checkCollision(enemyBounds, clawBounds2)){
-                console.log("hit enemy");
-                scene.remove(enemy.mesh);  // Remove enemy from scene
-                enemies.splice(index, 1);  // Remove enemy from array
-                score++; // Increment score when enemy is defeated
-                updateScore(); // Update the score display
-            }
-        });
+      // Create the first claw geometry as a Box
+      const clawG = new THREE.BoxGeometry(clawLength, 0.3, 0.3);
+      const claw = new THREE.Mesh(clawG, clawMat);
+      claw.position.set(player.position.x + (facingRight ? 0.5 : -0.5), player.position.y, player.position.z);
+      claw.rotation.z = 0;  // Align the claw horizontally
 
-    // Stop rendering the claw when the attack is done
-    setTimeout(() => {
-      scene.remove(claw);
-      if(twoSidedClawEnabled){
-        scene.remove(claw2);
+      // Position adjustments for double and two-sided claws
+      let claw2Pos = player.position.x;
+      if (facingRight) {
+        claw.position.x += doubleClawEnabled ? 3.0 : 1.5;
+        claw2Pos -= 2;
+      } else {
+        claw.position.x -= doubleClawEnabled ? 3.0 : 1.5;
+        claw2Pos += 2;
       }
-      canAttack = true;
-    }, 200);
+
+      // Clone and position the second claw if enabled
+      const claw2 = claw.clone();
+
+      // Adjust the texture for the second claw if the player is using a two-sided claw
+      if (twoSidedClawEnabled) {
+        claw2.position.set(claw2Pos, player.position.y, player.position.z);
+
+        // Flip the texture for the second claw to face the opposite direction
+        claw2.material = clawMat.clone();  // Use a separate material to avoid shared texture state
+        if (facingRight) {
+          claw2.material.map.repeat.x = -1;  // Flip to face left
+          claw2.material.map.offset.x = 1;   // Adjust offset for the flip
+        } else {
+          claw2.material.map.repeat.x = 1;   // Face right as normal
+          claw2.material.map.offset.x = 0;
+        }
+
+        scene.add(claw2);
+      }
+
+      scene.add(claw);
+      console.log("claw now attacking");
+
+      // Check for collisions with enemies
+      enemies.forEach((enemy, index) => {
+        const enemyBounds = getObjectBounds(enemy.mesh);
+        const clawBounds = {
+          left: claw.position.x - clawLength / 2,
+          right: claw.position.x + clawLength / 2,
+          top: claw.position.y + 0.05,
+          bottom: claw.position.y - 0.05,
+        };
+        const clawBounds2 = {
+          left: claw2.position.x - clawLength / 2,
+          right: claw2.position.x + clawLength / 2,
+          top: claw2.position.y + 0.05,
+          bottom: claw2.position.y - 0.05,
+        };
+
+        if (checkCollision(enemyBounds, clawBounds) || checkCollision(enemyBounds, clawBounds2)) {
+          console.log("hit enemy");
+          scene.remove(enemy.mesh);  // Remove enemy from scene
+          enemies.splice(index, 1);  // Remove enemy from array
+          score++; // Increment score when enemy is defeated
+          updateScore(); // Update the score display
+        }
+      });
+
+      // Remove the claws from the scene after the attack duration
+      setTimeout(() => {
+        scene.remove(claw);
+        if (twoSidedClawEnabled) {
+          scene.remove(claw2);
+        }
+        canAttack = true;
+      }, 200);
+    });
   }
 }
+
 
 // Add damage handling function
 function handleDamage() {
