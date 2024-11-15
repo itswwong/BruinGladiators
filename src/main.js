@@ -41,11 +41,11 @@ style.textContent = `
   }
   #hpContainer {
     position: fixed;
-    top: 20px;
+    top: 13px;
     left: 20px;
     color: black;
     font-family: Arial, sans-serif;
-    font-size: 16px;
+    font-size: 10px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -88,8 +88,8 @@ style.textContent = `
   }
   #scoreContainer {
     position: fixed;
-    top: 56px;
-    left: 20px;
+    top: 40px;
+    left: 14px;
     color: black;
     font-family: Arial, sans-serif;
     font-size: 24px;
@@ -164,8 +164,8 @@ function animate() {
       document.getElementById('gameOverScreen').style.display = 'flex';
     }
     
-    healthBar.position.x = camera.left + 1.6;
-    healthBar.position.y = camera.top - 0.37;
+    healthBar.position.x = camera.left + .2;
+    healthBar.position.y = camera.top - 0.4;
   }
 
   // Render the scene
