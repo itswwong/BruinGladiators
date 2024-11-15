@@ -41,8 +41,8 @@ style.textContent = `
   }
   #hpContainer {
     position: fixed;
-    top: 56px;
-    left: 120px;
+    top: 20px;
+    left: 20px;
     color: black;
     font-family: Arial, sans-serif;
     font-size: 16px;
@@ -88,7 +88,7 @@ style.textContent = `
   }
   #scoreContainer {
     position: fixed;
-    top: 20px;
+    top: 56px;
     left: 20px;
     color: black;
     font-family: Arial, sans-serif;
@@ -164,8 +164,8 @@ function animate() {
       document.getElementById('gameOverScreen').style.display = 'flex';
     }
     
-    healthBar.position.x = camera.left + 2;
-    healthBar.position.y = camera.top - 0.5;
+    healthBar.position.x = camera.left + 1.6;
+    healthBar.position.y = camera.top - 0.37;
   }
 
   // Render the scene
