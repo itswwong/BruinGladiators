@@ -306,7 +306,7 @@ function attack(scene, clawLength) {
 
           // 10% chance to spawn a fish
           if (Math.random() < 0.2) {
-            createFish(scene, enemyPos.x, enemyPos.y);
+            createFish(scene, enemyPos.x, enemyPos.y - 0.2);
           }
         }
       });
