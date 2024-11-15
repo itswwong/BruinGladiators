@@ -86,8 +86,7 @@ export function initGame(scene) {
 
     // Create dummy to test the player's combat
     createEnemy(scene, 2, -3.8);
-    //add a fish
-    createFish(scene, -2.0, -2);
+
     // Create ground platform
     createGround(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
 
@@ -294,10 +293,21 @@ function attack(scene, clawLength) {
 
         if (checkCollision(enemyBounds, clawBounds) || checkCollision(enemyBounds, clawBounds2)) {
           console.log("hit enemy");
+          // Store enemy position before removing it
+          const enemyPos = {
+            x: enemy.mesh.position.x,
+            y: enemy.mesh.position.y
+          };
+          
           scene.remove(enemy.mesh);  // Remove enemy from scene
           enemies.splice(index, 1);  // Remove enemy from array
           score++; // Increment score when enemy is defeated
           updateScore(); // Update the score display
+
+          // 10% chance to spawn a fish
+          if (Math.random() < 0.2) {
+            createFish(scene, enemyPos.x, enemyPos.y);
+          }
         }
       });
 
