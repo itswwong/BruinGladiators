@@ -10,7 +10,13 @@ const mapBounds = { left: -10, right: 10, bottom: -5 }; // Define map boundaries
 let canAttack = true;
 let cooldown = 1000;
 let lastAttack = 0;
+// The player direction
 let facingRight = true;
+
+let hitstun = false;
+let knockbackVelX = -0.1;
+const dampingConst = 0.95;
+let hitstunTimer = 0;
 
 // Length, material, and mesh of claw
 // The possible claws besides the default one are:
@@ -343,6 +349,26 @@ function attack(scene, clawLength) {
   }
 }
 
+// Knock the player back when they take damage,
+// by updating some fields that will be reflected in animate()
+function knockPlayer(){
+
+  //Check the direction that the player is facing;
+  // they should be knocked away from the enemy they collided with
+  if(facingRight){
+    knockbackVelX = -0.1;
+    facingRight = false;
+  }
+  else{
+    knockbackVelX = 0.1;
+    facingRight = true;
+  }
+
+  hitstun=true;
+  hitstunTimer = 0;
+  playerVelocityY = jumpStrength;
+}
+
 
 // Add damage handling function
 function handleDamage() {
@@ -350,6 +376,7 @@ function handleDamage() {
     if (currentTime - lastDamageTime >= damageInterval) {
         playerHealth = Math.max(0, playerHealth - 10);
         lastDamageTime = currentTime;
+        knockPlayer();
         
         healthBar.scale.x = playerHealth / 100;
         
@@ -465,6 +492,21 @@ export function gameLoop(scene) {
         }
     });
 
+    let onGround = false;
+    let hitCeiling = false;
+
+    // Apply knockback if player is in hitstun
+    if(hitstun){
+      player.position.x += knockbackVelX;
+      //console.log(hitstunTimer)
+      knockbackVelX *= dampingConst;
+      hitstunTimer += 16;
+      if(hitstunTimer > 4000){
+        hitstun = false;
+      }
+    }
+    //console.log(hitstun);
+
     // Apply gravity
     playerVelocityY += gravity;
     const nextY = player.position.y + playerVelocityY;
@@ -476,9 +518,6 @@ export function gameLoop(scene) {
         bottom: nextY - player.geometry.parameters.height / 2,
         top: nextY + player.geometry.parameters.height / 2
     };
-
-    let onGround = false;
-    let hitCeiling = false;
 
     for (const platform of platforms) {
         const platformBounds = getObjectBounds(platform);
