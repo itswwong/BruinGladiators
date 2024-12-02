@@ -37,6 +37,20 @@ let lastDamageTime = 0;
 const damageInterval = 1000; // 1 second in milliseconds
 let healthBar;
 
+// Shadow geometry function
+function createShadow(pos){
+  const shadowGeom = new THREE.CircleGeometry(0.5, 32);
+  const shadowMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.5
+  });
+  const shadow = new THREE.Mesh(shadowGeom, shadowMat);
+  shadow.position.set(pos.x, pos.y-0.8, pos.z + 3);
+  shadow.scale.set(1, 0.5, 1);
+  return shadow;
+}
+
 // Collision helper functions
 function getObjectBounds(obj) {
     const width = obj.geometry.parameters.width;
@@ -63,6 +77,9 @@ let lastSpawnTime = Date.now();
 const SPAWN_INTERVAL = 1000; // 10 seconds in milliseconds
 let score = 0;
 
+//
+let playerShadow = null;
+
 // Initialize the game
 export function initGame(scene) {
     score = 0; // Reset score when game starts
@@ -83,6 +100,10 @@ export function initGame(scene) {
         player = new THREE.Mesh(playerGeometry, playerMaterial);
         player.position.set(0, 0, 0);
         scene.add(player);
+        // Create the player shadow
+        playerShadow = createShadow({x: 0, y: 0, z: 0});
+        scene.add(playerShadow);
+        console.log(playerShadow.position);
     });
     
     // Create three different collectible claws, one of each type
@@ -95,6 +116,9 @@ export function initGame(scene) {
 
     // Create ground platform
     createGround(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
+
+    // Create sun
+    //createSun(scene);
 
     // Create floating platforms
     createPlatform(scene, -3, -2.5, 2, 0.5);
@@ -195,8 +219,11 @@ function createEnemy(scene, xCoord, yCoord) {
         enemyMesh.position.set(xCoord, yCoord + 0.3, 0);
 
         const enemy = new Enemy(enemyMesh);
+        enemy.shadow = createShadow({x: xCoord, y: yCoord, z: 0});
         enemies.push(enemy);
         scene.add(enemyMesh);
+        scene.add(enemy.shadow);
+        
     });
 }
 
@@ -326,6 +353,7 @@ function attack(scene, clawLength) {
           };
           
           scene.remove(enemy.mesh);  // Remove enemy from scene
+          scene.remove(enemy.shadow);
           enemies.splice(index, 1);  // Remove enemy from array
           score++; // Increment score when enemy is defeated
           updateScore(); // Update the score display
@@ -470,8 +498,22 @@ function checkClaws(scene){
   })
 }
 
+function updateShadows(dayNightFactor){
+  const shadowOpacity = 0.5 * dayNightFactor;
+
+  playerShadow.position.set(player.position.x, player.position.y-0.8, player.position.z);
+  playerShadow.material.opacity = shadowOpacity;
+
+  enemies.forEach((enemy, index) => {
+    let enemyshadow = enemies[index].shadow;
+    console.log(enemy.mesh);
+    enemyshadow.position.set(enemy.mesh.position.x, enemy.mesh.position.y-0.8, enemy.mesh.position.z);
+    enemyshadow.material.opacity = shadowOpacity;
+  })
+}
 // Game loop logic, to be called in animate
-export function gameLoop(scene) {
+export function gameLoop(scene, dayNightFactor) {
+
     // Horizontal movement
     if ((keys['ArrowLeft'] || keys['a']) && player.position.x > mapBounds.left) {
         player.position.x -= 0.05;
@@ -520,6 +562,8 @@ export function gameLoop(scene) {
     };
 
     for (const platform of platforms) {
+
+        //console.log(platform.position);
         const platformBounds = getObjectBounds(platform);
 
         // Check if the player is horizontally within the platform bounds
@@ -580,6 +624,9 @@ export function gameLoop(scene) {
         createEnemy(scene, randomX, -3.8);
         lastSpawnTime = currentTime;
     }
+
+    // Update shadows for the player and enemies
+    updateShadows(dayNightFactor);
 }
 
 
