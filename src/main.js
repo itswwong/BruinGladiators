@@ -17,10 +17,23 @@ const camera = new THREE.OrthographicCamera(
   0.1, 100
 );
 camera.position.set(0, 0, 10);
+camera.layers.enable(1);
+
+// Setup the day/night cycle via an elapsed time variable
+let elapsedTime = 0;
+
+// The layer to simulate lighting changes
+const dayOverlay = new THREE.Mesh(
+  new THREE.PlaneGeometry(viewSize * 2 * aspectRatio, viewSize * 2),
+  new THREE.MeshBasicMaterial({color: 0x000000, transparent: true, opacity: 0})
+);
+scene.add(dayOverlay);
+
 
 // Renderer setup with fixed size
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(width, height);
+renderer.localClippingEnabled = true;
 document.body.appendChild(renderer.domElement);
 
 // Prevent window scrolling and ensure full coverage
@@ -149,10 +162,16 @@ initGame(scene, camera);
 
 // Render loop
 function animate() {
+  let timeDelta = 0.01;
+  const dayNightFactor = 0.75 * Math.sin(elapsedTime * 0.05) + 0.25;
+  dayOverlay.material.opacity = 0.5 * (1-dayNightFactor);
+
+  elapsedTime = (elapsedTime % (40*Math.PI)) +  timeDelta;
+
   requestAnimationFrame(animate);
 
   // Call game loop for logic updates
-  gameLoop(scene);
+  gameLoop(scene, dayNightFactor);
 
   // Update HP text
   const healthBar = scene.children.find(child => child.geometry?.type === 'PlaneGeometry' && child.material.color.getHex() === 0xff0000);
