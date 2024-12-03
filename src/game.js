@@ -112,8 +112,8 @@ export function initGame(scene) {
         playerShadow.renderOrder = 1;
     });
     
-    const helper = new THREE.PlaneHelper(clippingPlaneArr[0], 10, 0x00ff00);
-    scene.add(helper);
+    //const helper = new THREE.PlaneHelper(clippingPlaneArr[0], 10, 0x00ff00);
+    //scene.add(helper);
 
     // Create three different collectible claws, one of each type
     createClaw(scene, -3.5, -1.75, 1);
@@ -523,6 +523,7 @@ function updateShadows(dayNightFactor){
   playerShadow.position.set(player.position.x, player.position.y-0.8, player.position.z);
   playerShadow.material.opacity = shadowOpacity;
   console.log(playerShadow.material.clippingPlanes);
+  
 
   enemies.forEach((enemy, index) => {
     let enemyshadow = enemies[index].shadow;
