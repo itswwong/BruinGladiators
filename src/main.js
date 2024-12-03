@@ -17,6 +17,7 @@ const camera = new THREE.OrthographicCamera(
   0.1, 100
 );
 camera.position.set(0, 0, 10);
+camera.layers.enable(1);
 
 // Setup the day/night cycle via an elapsed time variable
 let elapsedTime = 0;
@@ -32,6 +33,7 @@ scene.add(dayOverlay);
 // Renderer setup with fixed size
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(width, height);
+renderer.localClippingEnabled = true;
 document.body.appendChild(renderer.domElement);
 
 // Prevent window scrolling and ensure full coverage

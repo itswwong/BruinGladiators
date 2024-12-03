@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 const loader = new THREE.TextureLoader();
 
-let player, platforms = [], keys = {}, enemies = [], doubleClaws = [], fastClaws = [], twoSidedClaws = [], fishes = [];
+let player, platforms = [], clippingPlaneArr = [], keys = {}, enemies = [], doubleClaws = [], fastClaws = [], twoSidedClaws = [], fishes = [];
 let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
 const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
@@ -43,11 +43,16 @@ function createShadow(pos){
   const shadowMat = new THREE.MeshBasicMaterial({
     color: 0x000000,
     transparent: true,
-    opacity: 0.5
+    opacity: 0.5,
+    clippingPlanes: clippingPlaneArr,
   });
   const shadow = new THREE.Mesh(shadowGeom, shadowMat);
   shadow.position.set(pos.x, pos.y-0.8, pos.z + 3);
   shadow.scale.set(1, 0.5, 1);
+  shadow.layers.set(1);
+  //console.log(clippingPlaneArr)
+  //console.log("clipping planes");
+  //console.log(shadow.material.clippingPlanes);
   return shadow;
 }
 
@@ -104,15 +109,19 @@ export function initGame(scene) {
         playerShadow = createShadow({x: 0, y: 0, z: 0});
         scene.add(playerShadow);
         console.log(playerShadow.position);
+        playerShadow.renderOrder = 1;
     });
     
+    const helper = new THREE.PlaneHelper(clippingPlaneArr[0], 10, 0x00ff00);
+    scene.add(helper);
+
     // Create three different collectible claws, one of each type
     createClaw(scene, -3.5, -1.75, 1);
     createClaw(scene, 2, -0.75, 2);
     createClaw(scene, 5.5, -0.75, 3);
 
     // Create dummy to test the player's combat
-    createEnemy(scene, 2, -3.8);
+    //createEnemy(scene, 2, -3.8);
 
     // Create ground platform
     createGround(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
@@ -243,7 +252,12 @@ function createPlatform(scene, x, y, width, height) {
 
         const platform = new THREE.Mesh(geometry, material);
         platform.position.set(x, y, 0);
+        
+        const clippingPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), -y - height);
+        platform.renderOrder = 0;
         platforms.push(platform);
+        console.log("pushing plane");
+        clippingPlaneArr.push(clippingPlane);
         scene.add(platform);
     });
 }
@@ -258,7 +272,12 @@ function createGround(scene, x, y, width, height) {
 
       const platform = new THREE.Mesh(geometry, material);
       platform.position.set(x, y, 0);
+      
+      const clippingPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), -y - height);
+      platform.renderOrder = 0;
       platforms.push(platform);
+      console.log("pushing plane");
+      clippingPlaneArr.push(clippingPlane);
       scene.add(platform);
     });
 }
@@ -503,10 +522,10 @@ function updateShadows(dayNightFactor){
 
   playerShadow.position.set(player.position.x, player.position.y-0.8, player.position.z);
   playerShadow.material.opacity = shadowOpacity;
+  console.log(playerShadow.material.clippingPlanes);
 
   enemies.forEach((enemy, index) => {
     let enemyshadow = enemies[index].shadow;
-    console.log(enemy.mesh);
     enemyshadow.position.set(enemy.mesh.position.x, enemy.mesh.position.y-0.8, enemy.mesh.position.z);
     enemyshadow.material.opacity = shadowOpacity;
   })
