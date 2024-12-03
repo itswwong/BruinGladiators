@@ -47,7 +47,7 @@ function createShadow(pos){
     clippingPlanes: clippingPlaneArr,
   });
   const shadow = new THREE.Mesh(shadowGeom, shadowMat);
-  shadow.position.set(pos.x, pos.y-0.8, pos.z + 3);
+  shadow.position.set(pos.x, pos.y-0.7, pos.z + 3);
   shadow.scale.set(1, 0.5, 1);
   shadow.layers.set(1);
   //console.log(clippingPlaneArr)
@@ -520,14 +520,14 @@ function checkClaws(scene){
 function updateShadows(dayNightFactor){
   const shadowOpacity = 0.5 * dayNightFactor;
 
-  playerShadow.position.set(player.position.x, player.position.y-0.8, player.position.z);
+  playerShadow.position.set(player.position.x, player.position.y-0.7, player.position.z);
   playerShadow.material.opacity = shadowOpacity;
   console.log(playerShadow.material.clippingPlanes);
   
 
   enemies.forEach((enemy, index) => {
     let enemyshadow = enemies[index].shadow;
-    enemyshadow.position.set(enemy.mesh.position.x, enemy.mesh.position.y-0.8, enemy.mesh.position.z);
+    enemyshadow.position.set(enemy.mesh.position.x, enemy.mesh.position.y-0.7, enemy.mesh.position.z);
     enemyshadow.material.opacity = shadowOpacity;
   })
 }
