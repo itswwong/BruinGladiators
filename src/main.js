@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initGame, gameLoop, isPaused, togglePause } from './game';
+import { initGame, gameLoop, isPaused, togglePause, currentRound, switchClaw } from './game';
 
 // Set up the scene
 const scene = new THREE.Scene();
@@ -28,7 +28,6 @@ const dayOverlay = new THREE.Mesh(
   new THREE.MeshBasicMaterial({color: 0x000000, transparent: true, opacity: 0})
 );
 scene.add(dayOverlay);
-
 
 // Renderer setup with fixed size
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -99,15 +98,6 @@ style.textContent = `
   #restartButton:hover {
     background-color: #ff6666;
   }
-  #scoreContainer {
-    position: fixed;
-    top: 40px;
-    left: 14px;
-    color: black;
-    font-family: Arial, sans-serif;
-    font-size: 24px;
-    user-select: none;
-  }
   #pauseScreen {
     position: fixed;
     top: 0;
@@ -140,6 +130,99 @@ style.textContent = `
   }
   #resumeButton:hover {
     background-color: #66ff66;
+  }
+  #roundContainer {
+    position: fixed;
+    top: 40px;
+    left: 14px;
+    color: black;
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+    user-select: none;
+  }
+  #clawInventory {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 10px;
+  }
+  .claw-slot {
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #fff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, sans-serif;
+  }
+  .claw-slot.locked {
+    opacity: 0.5;
+    border-color: #666;
+  }
+  #weaponDisplay {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 10px;
+    user-select: none;
+    z-index: 1000;
+  }
+  .weapon-option {
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  .weapon-option.active {
+    opacity: 1;
+    font-weight: bold;
+    border: 2px solid #000;
+  }
+  .weapon-option.locked {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  #notificationContainer {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  .notification {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    font-family: Arial, sans-serif;
+    animation: fadeInOut 3s forwards;
+    margin-bottom: 10px;
+  }
+
+  .notification h2 {
+    color: #ffd700;
+    margin: 0 0 10px 0;
+    font-size: 24px;
+  }
+
+  .notification p {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
   }
 `;
 document.head.appendChild(style);
@@ -175,16 +258,10 @@ const gameOverScreen = document.createElement('div');
 gameOverScreen.id = 'gameOverScreen';
 gameOverScreen.innerHTML = `
   <h1>GAME OVER</h1>
-  <div id="finalScore" style="font-size: 24px; margin-bottom: 20px;">Score: 0</div>
+  <div id="finalRound" style="font-size: 24px; margin-bottom: 20px;">Round: 1</div>
   <button id="restartButton">Restart Game</button>
 `;
 document.body.appendChild(gameOverScreen);
-
-// Create score display element (add after other UI elements)
-const scoreContainer = document.createElement('div');
-scoreContainer.id = 'scoreContainer';
-scoreContainer.innerHTML = `<div id="scoreText">Score: 0</div>`;
-document.body.appendChild(scoreContainer);
 
 // Add pause screen
 const pauseScreen = document.createElement('div');
@@ -209,6 +286,11 @@ document.addEventListener('keydown', (event) => {
             pauseScreen.style.display = isPaused ? 'flex' : 'none';
         }
     }
+    // Number keys 1-4 for switching claws
+    if (event.key === '1') switchClaw('default');
+    if (event.key === '2') switchClaw('fast');
+    if (event.key === '3') switchClaw('dual');
+    if (event.key === '4') switchClaw('long');
 });
 
 // Add resume button functionality
@@ -217,8 +299,40 @@ document.getElementById('resumeButton').addEventListener('click', () => {
     document.getElementById('pauseScreen').style.display = 'none';
 });
 
-// Game initialization
-initGame(scene, camera);
+// Add round container
+const roundContainer = document.createElement('div');
+roundContainer.id = 'roundContainer';
+roundContainer.innerHTML = `<div id="roundText">Round 1</div>`;
+document.body.appendChild(roundContainer);
+
+// Add this before initGame is called
+const notificationContainer = document.createElement('div');
+notificationContainer.id = 'notificationContainer';
+document.body.appendChild(notificationContainer);
+
+// Initialize the game
+initGame(scene);
+
+// Create weapon display
+const weaponDisplay = document.createElement('div');
+weaponDisplay.id = 'weaponDisplay';
+weaponDisplay.innerHTML = `
+    <div class="weapon-option active" data-claw="default">Default Claw</div>
+    <div class="weapon-option locked" data-claw="fast">Fast Claw</div>
+    <div class="weapon-option locked" data-claw="dual">Dual Claw</div>
+    <div class="weapon-option locked" data-claw="long">Long Claw</div>
+`;
+document.body.appendChild(weaponDisplay);
+
+// Add click handlers for the weapon options
+weaponDisplay.querySelectorAll('.weapon-option').forEach(option => {
+    option.addEventListener('click', () => {
+        const clawType = option.dataset.claw;
+        if (!option.classList.contains('locked')) {
+            switchClaw(clawType);
+        }
+    });
+});
 
 // Render loop
 function animate() {
@@ -249,6 +363,7 @@ function animate() {
         
         if (currentHealth <= 0) {
             document.getElementById('gameOverScreen').style.display = 'flex';
+            document.getElementById('finalRound').textContent = `You Survived Until Round ${currentRound}`;
         }
         
         healthBar.position.x = camera.left + .2;
@@ -256,3 +371,14 @@ function animate() {
     }
 }
 animate();
+
+// Add UI for showing unlocked claws (optional)
+const clawInventory = document.createElement('div');
+clawInventory.id = 'clawInventory';
+clawInventory.innerHTML = `
+    <div class="claw-slot" data-claw="default">1</div>
+    <div class="claw-slot locked" data-claw="fast">2</div>
+    <div class="claw-slot locked" data-claw="dual">3</div>
+    <div class="claw-slot locked" data-claw="long">4</div>
+`;
+document.body.appendChild(clawInventory);
