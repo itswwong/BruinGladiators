@@ -142,6 +142,7 @@ const gameOverScreen = document.createElement('div');
 gameOverScreen.id = 'gameOverScreen';
 gameOverScreen.innerHTML = `
   <h1>GAME OVER</h1>
+  <div id="finalScore" style="font-size: 24px; margin-bottom: 20px;">Score: 0</div>
   <button id="restartButton">Restart Game</button>
 `;
 document.body.appendChild(gameOverScreen);
