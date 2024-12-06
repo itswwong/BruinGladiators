@@ -29,7 +29,6 @@ const dayOverlay = new THREE.Mesh(
 );
 scene.add(dayOverlay);
 
-
 // Renderer setup with fixed size
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(width, height);
@@ -167,14 +166,26 @@ style.textContent = `
     position: fixed;
     top: 20px;
     right: 20px;
-    color: black;
-    font-family: Arial, sans-serif;
-    font-size: 18px;
+    display: flex;
+    gap: 10px;
     user-select: none;
     z-index: 1000;
+  }
+  .weapon-option {
     background-color: rgba(255, 255, 255, 0.7);
     padding: 5px 10px;
     border-radius: 5px;
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  .weapon-option.active {
+    opacity: 1;
+    font-weight: bold;
+    border: 2px solid #000;
+  }
+  .weapon-option.locked {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 `;
 document.head.appendChild(style);
@@ -263,9 +274,23 @@ initGame(scene, camera);
 // Create weapon display
 const weaponDisplay = document.createElement('div');
 weaponDisplay.id = 'weaponDisplay';
-weaponDisplay.textContent = 'Default Claw';
+weaponDisplay.innerHTML = `
+    <div class="weapon-option active" data-claw="default">Default Claw</div>
+    <div class="weapon-option locked" data-claw="fast">Fast Claw</div>
+    <div class="weapon-option locked" data-claw="dual">Dual Claw</div>
+    <div class="weapon-option locked" data-claw="long">Long Claw</div>
+`;
 document.body.appendChild(weaponDisplay);
-console.log('Weapon display created:', document.getElementById('weaponDisplay'));
+
+// Add click handlers for the weapon options
+weaponDisplay.querySelectorAll('.weapon-option').forEach(option => {
+    option.addEventListener('click', () => {
+        const clawType = option.dataset.claw;
+        if (!option.classList.contains('locked')) {
+            switchClaw(clawType);
+        }
+    });
+});
 
 // Render loop
 function animate() {

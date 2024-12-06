@@ -214,25 +214,25 @@ function checkClawUnlocks() {
     if (currentRound === 3 && !unlockedClaws.fast) {
         unlockedClaws.fast = true;
         console.log("Fast Claw unlocked!");
-        const fastSlot = document.querySelector('[data-claw="fast"]');
-        if (fastSlot) {
-            fastSlot.classList.remove('locked');
+        const fastOption = document.querySelector('.weapon-option[data-claw="fast"]');
+        if (fastOption) {
+            fastOption.classList.remove('locked');
         }
     }
     if (currentRound === 5 && !unlockedClaws.dual) {
         unlockedClaws.dual = true;
         console.log("Dual Claw unlocked!");
-        const dualSlot = document.querySelector('[data-claw="dual"]');
-        if (dualSlot) {
-            dualSlot.classList.remove('locked');
+        const dualOption = document.querySelector('.weapon-option[data-claw="dual"]');
+        if (dualOption) {
+            dualOption.classList.remove('locked');
         }
     }
     if (currentRound === 7 && !unlockedClaws.long) {
         unlockedClaws.long = true;
         console.log("Long Claw unlocked!");
-        const longSlot = document.querySelector('[data-claw="long"]');
-        if (longSlot) {
-            longSlot.classList.remove('locked');
+        const longOption = document.querySelector('.weapon-option[data-claw="long"]');
+        if (longOption) {
+            longOption.classList.remove('locked');
         }
     }
 }
@@ -242,18 +242,16 @@ export function switchClaw(clawType) {
     if (!unlockedClaws[clawType]) return;
 
     // Update UI
-    const weaponDisplay = document.getElementById('weaponDisplay');
-    const slots = document.querySelectorAll('.claw-slot');
-    slots.forEach(slot => slot.classList.remove('active'));
-    const activeSlot = document.querySelector(`[data-claw="${clawType}"]`);
-    if (activeSlot) {
-        activeSlot.classList.add('active');
+    const weaponOptions = document.querySelectorAll('.weapon-option');
+    weaponOptions.forEach(option => option.classList.remove('active'));
+    const activeOption = document.querySelector(`.weapon-option[data-claw="${clawType}"]`);
+    if (activeOption) {
+        activeOption.classList.add('active');
     }
 
     currentClaw = clawType;
     switch (clawType) {
         case 'default':
-            if (weaponDisplay) weaponDisplay.textContent = 'Default Claw';
             doubleClawEnabled = false;
             fastClawEnabled = false;
             twoSidedClawEnabled = false;
@@ -261,7 +259,6 @@ export function switchClaw(clawType) {
             cooldown = 1000;
             break;
         case 'fast':
-            if (weaponDisplay) weaponDisplay.textContent = 'Fast Claw';
             doubleClawEnabled = false;
             fastClawEnabled = true;
             twoSidedClawEnabled = false;
@@ -269,7 +266,6 @@ export function switchClaw(clawType) {
             cooldown = 500;
             break;
         case 'dual':
-            if (weaponDisplay) weaponDisplay.textContent = 'Dual Claw';
             doubleClawEnabled = false;
             fastClawEnabled = false;
             twoSidedClawEnabled = true;
@@ -277,7 +273,6 @@ export function switchClaw(clawType) {
             cooldown = 1000;
             break;
         case 'long':
-            if (weaponDisplay) weaponDisplay.textContent = 'Long Claw';
             doubleClawEnabled = true;
             fastClawEnabled = false;
             twoSidedClawEnabled = false;
