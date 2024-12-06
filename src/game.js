@@ -28,8 +28,8 @@ let fastClawEnabled = false;
 let twoSidedClawEnabled = false;
 
 // length, material, and mesh of claw
-// The default length is 3
-let clawLength = 3;
+// The default length is 1.5
+let clawLength = 1.5;
 
 // Add health-related variables
 let playerHealth = 100;
@@ -121,10 +121,28 @@ export let unlockedClaws = {
 let currentClaw = 'default';
 
 // Add these variables at the top with other state variables
-const BOSS_ROUNDS_INTERVAL = 5; // Boss appears every 4 rounds
-const BOSS_HEALTH = 8; // Boss takes 8 hits to defeat
+const BOSS_ROUNDS_INTERVAL = 3; // Boss appears every 4 rounds
+const BASE_BOSS_HEALTH = 8; // Base health for first boss
 let isBossRound = false;
 let bossSpawned = false; // New flag to prevent multiple boss spawns
+
+// Add at the top with other variables
+let attackSprites = {
+    punch1: null,
+    punch2: null
+};
+
+// Preload the textures
+function preloadAttackSprites() {
+    loader.load('assets/bear_punch1.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        attackSprites.punch1 = texture;
+    });
+    loader.load('assets/bear_punch2.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        attackSprites.punch2 = texture;
+    });
+}
 
 // Modify the initGame function to initialize round variables
 export function initGame(scene) {
@@ -215,6 +233,9 @@ export function initGame(scene) {
     
     // Remove the existing enemy spawn code since we'll handle it in spawnRoundEnemies
     spawnRoundEnemies(scene);
+
+    // Preload attack sprites
+    preloadAttackSprites();
 }
 
 function showUnlockNotification(clawName, description) {
@@ -241,7 +262,7 @@ function showUnlockNotification(clawName, description) {
 function checkClawUnlocks() {
     console.log('Checking unlocks for round:', currentRound); // Debug log
 
-    if (currentRound === 3 && !unlockedClaws.fast) {
+    if (currentRound === 4 && !unlockedClaws.fast) {
         unlockedClaws.fast = true;
         console.log("Fast Claw unlocked!");
         const fastOption = document.querySelector('.weapon-option[data-claw="fast"]');
@@ -253,7 +274,7 @@ function checkClawUnlocks() {
             "Attack twice as fast with reduced cooldown!"
         );
     }
-    if (currentRound === 5 && !unlockedClaws.dual) {
+    if (currentRound === 7 && !unlockedClaws.dual) {
         unlockedClaws.dual = true;
         console.log("Dual Claw unlocked!");
         const dualOption = document.querySelector('.weapon-option[data-claw="dual"]');
@@ -265,7 +286,7 @@ function checkClawUnlocks() {
             "Attack in both directions simultaneously!"
         );
     }
-    if (currentRound === 7 && !unlockedClaws.long) {
+    if (currentRound === 10 && !unlockedClaws.long) {
         unlockedClaws.long = true;
         console.log("Long Claw unlocked!");
         const longOption = document.querySelector('.weapon-option[data-claw="long"]');
@@ -297,28 +318,28 @@ export function switchClaw(clawType) {
             doubleClawEnabled = false;
             fastClawEnabled = false;
             twoSidedClawEnabled = false;
-            clawLength = 3;
+            clawLength = 1.5;
             cooldown = 1000;
             break;
         case 'fast':
             doubleClawEnabled = false;
             fastClawEnabled = true;
             twoSidedClawEnabled = false;
-            clawLength = 3;
+            clawLength = 1.5;
             cooldown = 500;
             break;
         case 'dual':
             doubleClawEnabled = false;
             fastClawEnabled = false;
             twoSidedClawEnabled = true;
-            clawLength = 3;
+            clawLength = 1.5;
             cooldown = 1000;
             break;
         case 'long':
             doubleClawEnabled = true;
             fastClawEnabled = false;
             twoSidedClawEnabled = false;
-            clawLength = 6;
+            clawLength = 3;
             cooldown = 1000;
             break;
     }
@@ -353,16 +374,19 @@ function createEnemy(scene, xCoord, yCoord) {
             const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
             enemyMesh.position.set(xCoord, yCoord, 0);
             enemyMesh.isBoss = true;
-            enemyMesh.health = BOSS_HEALTH;
+            // Calculate boss health based on round number
+            enemyMesh.health = calculateBossHealth();
+            console.log(`Boss spawned with ${enemyMesh.health} health`);
 
             const enemy = new Enemy(enemyMesh);
             
-            // Create shadow with adjusted position and scale for boss
-            const bossShadow = createShadow({x: xCoord, y: yCoord - 1.4, z: 0});
+            // Create shadow with adjusted position for boss
+            const bossShadow = createShadow({
+                x: xCoord, 
+                y: yCoord - 0.4, // Adjusted to be closer to the ground
+                z: 0
+            });
             bossShadow.scale.set(2.5, 1.25, 1);
-            
-            // Log shadow position for debugging
-            console.log('Boss shadow position:', bossShadow.position);
             
             enemy.shadow = bossShadow;
             enemies.push(enemy);
@@ -436,92 +460,102 @@ function createGround(scene, x, y, width, height) {
     });
 }
 
+// Modify the attack function to include both animations
 function attack(scene, clawLength) {
-  let time = Date.now();
+    let time = Date.now();
 
-  if (canAttack && time - lastAttack >= cooldown) {
-    canAttack = false;
-    lastAttack = time;
+    if (canAttack && time - lastAttack >= cooldown) {
+        canAttack = false;
+        lastAttack = time;
 
-    loader.load('assets/claw_animation.png', (clawTexture) => {
-      // Configure the texture for the main (first) claw
-      clawTexture.wrapS = THREE.ClampToEdgeWrapping;
-      clawTexture.wrapT = THREE.ClampToEdgeWrapping;
-      clawTexture.repeat.set(1, 1);  // Prevent repeating
+        // Duration for each frame
+        const frameDuration = 100; // 100ms per frame
+        const startTime = Date.now();
+        
+        // Save original texture and facing direction at start of attack
+        const originalTexture = player.material.map;
+        const attackDirection = facingRight; // Lock in attack direction
 
-      // Flip texture for left-facing attacks
-      if (!facingRight) {
-        clawTexture.repeat.x = -1;  // Flip horizontally
-        clawTexture.offset.x = 1;   // Offset to correct position after flip
-      } else {
-        clawTexture.repeat.x = 1;
-        clawTexture.offset.x = 0;
-      }
+        // Create the slash effect
+        loader.load('assets/claw_animation.png', (clawTexture) => {
+            clawTexture.magFilter = THREE.NearestFilter;
+            
+            const clawMat = new THREE.MeshBasicMaterial({ 
+                map: clawTexture, 
+                transparent: true 
+            });
 
-      // Create the claw material using the loaded texture
-      const clawMat = new THREE.MeshBasicMaterial({ map: clawTexture, transparent: true });
+            const clawG = new THREE.BoxGeometry(clawLength, 0.3, 0.3);
+            const claw = new THREE.Mesh(clawG, clawMat);
+            
+            // Set initial claw direction
+            if (!attackDirection) {
+                claw.scale.x = -1;
+            }
+            
+            // Position the claw relative to player
+            claw.position.set(
+                player.position.x + (attackDirection ? clawLength/2 + 0.1 : -(clawLength/2 + 0.1)),
+                player.position.y + 0.2,
+                player.position.z
+            );
 
-      // Create the first claw geometry as a Box
-      const clawG = new THREE.BoxGeometry(clawLength, 0.3, 0.3);
-      const claw = new THREE.Mesh(clawG, clawMat);
-      claw.position.set(player.position.x + (facingRight ? 0.5 : -0.5), player.position.y, player.position.z);
-      claw.rotation.z = 0;  // Align the claw horizontally
+            scene.add(claw);
 
-      // Position adjustments for double and two-sided claws
-      let claw2Pos = player.position.x;
-      if (facingRight) {
-        claw.position.x += doubleClawEnabled ? 3.0 : 1.5;
-        claw2Pos -= 2;
-      } else {
-        claw.position.x -= doubleClawEnabled ? 3.0 : 1.5;
-        claw2Pos += 2;
-      }
+            // Animate both the player and the claw
+            function animateAttack() {
+                const now = Date.now();
+                const elapsed = now - startTime;
 
-      // Clone and position the second claw if enabled
-      const claw2 = claw.clone();
+                // Player punch animation - maintain attack direction
+                if (elapsed < frameDuration) {
+                    if (attackSprites.punch1) {
+                        player.material.map = attackSprites.punch1;
+                        player.scale.x = attackDirection ? 1 : -1;
+                    }
+                } else if (elapsed < frameDuration * 2) {
+                    if (attackSprites.punch2) {
+                        player.material.map = attackSprites.punch2;
+                        player.scale.x = attackDirection ? 1 : -1;
+                    }
+                } else if (elapsed < frameDuration * 3) {
+                    player.material.map = originalTexture;
+                    player.scale.x = facingRight ? 1 : -1; // Return to current facing direction
+                }
 
-      // Adjust the texture for the second claw if the player is using a two-sided claw
-      if (twoSidedClawEnabled) {
-        claw2.position.set(claw2Pos, player.position.y, player.position.z);
+                // Claw slash animation - maintain attack direction
+                if (elapsed < frameDuration * 3) {
+                    claw.position.x = player.position.x + (attackDirection ? clawLength/2 + 0.5 : -(clawLength/2 + 0.5));
+                    claw.position.y = player.position.y + 0.2;
+                    requestAnimationFrame(animateAttack);
+                } else {
+                    scene.remove(claw);
+                    canAttack = true;
+                }
+            }
 
-        // Flip the texture for the second claw to face the opposite direction
-        claw2.material = clawMat.clone();  // Use a separate material to avoid shared texture state
+            animateAttack();
+            checkAttackCollisions(player, claw, scene);
+        });
+    }
+}
+
+// Separate collision checking into its own function
+function checkAttackCollisions(attacker, unused, scene) {
+    const enemiesToRemove = [];
+    
+    enemies.forEach(enemy => {
+        const enemyBounds = getObjectBounds(enemy.mesh);
+        const attackerBounds = getObjectBounds(attacker);
+        
+        // Extend the attack bounds in the direction the player is facing
         if (facingRight) {
-          claw2.material.map.repeat.x = -1;  // Flip to face left
-          claw2.material.map.offset.x = 1;   // Adjust offset for the flip
+            attackerBounds.right += clawLength;
         } else {
-          claw2.material.map.repeat.x = 1;   // Face right as normal
-          claw2.material.map.offset.x = 0;
+            attackerBounds.left -= clawLength;
         }
 
-        scene.add(claw2);
-      }
-
-      scene.add(claw);
-      if (twoSidedClawEnabled) {
-        scene.add(claw2);
-      }
-      
-      // Create arrays to store enemies to remove
-      const enemiesToRemove = [];
-      
-      // Check for collisions with enemies
-      enemies.forEach((enemy, index) => {
-        const enemyBounds = getObjectBounds(enemy.mesh);
-        const clawBounds = {
-          left: claw.position.x - clawLength / 2,
-          right: claw.position.x + clawLength / 2,
-          top: claw.position.y + 0.05,
-          bottom: claw.position.y - 0.05,
-        };
-        const clawBounds2 = {
-          left: claw2.position.x - clawLength / 2,
-          right: claw2.position.x + clawLength / 2,
-          top: claw2.position.y + 0.05,
-          bottom: claw2.position.y - 0.05,
-        };
-
-        if (checkCollision(enemyBounds, clawBounds) || (twoSidedClawEnabled && checkCollision(enemyBounds, clawBounds2))) {
+        if (checkCollision(enemyBounds, attackerBounds)) {
             if (enemy.mesh.isBoss) {
                 enemy.mesh.health--;
                 if (enemy.mesh.health <= 0) {
@@ -532,6 +566,8 @@ function attack(scene, clawLength) {
                             y: enemy.mesh.position.y
                         }
                     });
+                    isBossRound = false;
+                    bossSpawned = false;
                 }
             } else {
                 enemiesToRemove.push({
@@ -543,44 +579,30 @@ function attack(scene, clawLength) {
                 });
             }
         }
-      });
+    });
 
-      // Remove enemies and spawn fish after collision checks are complete
-      enemiesToRemove.forEach(({enemy, position}) => {
+    // Handle enemy removal and fish spawning
+    enemiesToRemove.forEach(({enemy, position}) => {
         scene.remove(enemy.mesh);
         scene.remove(enemy.shadow);
         enemies.splice(enemies.indexOf(enemy), 1);
         score++;
         updateScore();
 
-        // Check if round is complete
-        if (enemies.length === 0 && enemiesRemainingInRound === 0) {
+        if (enemies.length === 0) {
             roundActive = false;
             roundCompleteTime = Date.now();
             currentRound++;
-            // Update UI to show round complete
             const roundText = document.getElementById('roundText');
             if (roundText) {
                 roundText.textContent = `Round ${currentRound}`;
             }
         }
 
-        // 20% chance to spawn a fish
         if (Math.random() < 0.2) {
-          createFish(scene, position.x, position.y - 0.2);
+            createFish(scene, position.x, position.y - 0.2);
         }
-      });
-
-      // Remove the claws after attack duration
-      setTimeout(() => {
-        scene.remove(claw);
-        if (twoSidedClawEnabled) {
-          scene.remove(claw2);
-        }
-        canAttack = true;
-      }, 200);
     });
-  }
 }
 
 // Knock the player back when they take damage,
@@ -646,62 +668,102 @@ function checkFish(scene){
   })
 }
 
+// Enhanced shadow update function
 function updateShadows(dayNightFactor) {
-  const shadowOpacity = 0.5 * dayNightFactor;
+    const MAX_SHADOW_DISTANCE = 5; // Maximum distance for shadow visibility
+    const MIN_SHADOW_SCALE = 0.5;  // Minimum shadow scale when unit is high up
+    const MAX_SHADOW_SCALE = 1.2;  // Maximum shadow scale when unit is on ground
+    const MIN_SHADOW_OPACITY = 0.2; // Minimum shadow opacity when unit is high up
+    const MAX_SHADOW_OPACITY = 0.5; // Maximum shadow opacity when unit is on ground
 
-  // Project shadows onto the nearest surface below each unit
-  function findShadowY(unitX, unitY) {
-    // Start with the map bottom as default
-    let shadowY = mapBounds.bottom;
-    
-    // Check all platforms to find the highest one below the unit
-    platforms.forEach(platform => {
-      const platformBounds = getObjectBounds(platform);
-      // Only check platforms that are directly below the unit's X position
-      if (unitX >= platformBounds.left && unitX <= platformBounds.right) {
-        const platformTop = platformBounds.top;
-        if (platformTop < unitY && platformTop > shadowY) {
-          shadowY = platformTop;
-        }
-      }
-    });
-    
-    return shadowY;
-  }
-
-  // Update player shadow
-  if (playerShadow) {
-    const playerShadowY = findShadowY(player.position.x, player.position.y);
-    playerShadow.position.set(
-      player.position.x,
-      playerShadowY - 0.25,
-      player.position.z
-    );
-    playerShadow.material.opacity = shadowOpacity;
-  }
-
-  // Update enemy shadows
-  enemies.forEach(enemy => {
-    const enemyShadow = enemy.shadow;
-    if (enemyShadow) {
-      const enemyShadowY = findShadowY(enemy.mesh.position.x, enemy.mesh.position.y);
-      
-      if (enemy.mesh.isBoss) {
-        enemyShadow.position.set(
-          enemy.mesh.position.x,
-          enemyShadowY - .6,
-          enemy.mesh.position.z
-        );
-      } else {
-        enemyShadow.position.set(
-          enemy.mesh.position.x,
-          enemyShadowY - 0.25,
-          enemy.mesh.position.z
-        );
-      }
-      enemyShadow.material.opacity = shadowOpacity;
+    // Project shadows onto the nearest surface below each unit
+    function findShadowY(unitX, unitY) {
+        // Start with the map bottom as default
+        let shadowY = mapBounds.bottom;
+        let nearestDistance = Infinity;
+        
+        // Check all platforms to find the highest one below the unit's X position
+        platforms.forEach(platform => {
+            const platformBounds = getObjectBounds(platform);
+            // Only check platforms that are directly below the unit's X position
+            if (unitX >= platformBounds.left && unitX <= platformBounds.right) {
+                const platformTop = platformBounds.top;
+                const distance = unitY - platformTop;
+                if (distance > 0 && distance < nearestDistance) {
+                    shadowY = platformTop;
+                    nearestDistance = distance;
+                }
+            }
+        });
+        
+        return { y: shadowY, distance: nearestDistance };
     }
-  });
+
+    // Calculate shadow properties based on height
+    function calculateShadowProperties(heightDiff) {
+        const normalizedHeight = Math.min(heightDiff, MAX_SHADOW_DISTANCE) / MAX_SHADOW_DISTANCE;
+        
+        // Calculate scale (smaller when higher up)
+        const scale = MAX_SHADOW_SCALE - (normalizedHeight * (MAX_SHADOW_SCALE - MIN_SHADOW_SCALE));
+        
+        // Calculate opacity (more transparent when higher up)
+        const baseOpacity = MAX_SHADOW_OPACITY - (normalizedHeight * (MAX_SHADOW_OPACITY - MIN_SHADOW_OPACITY));
+        const opacity = baseOpacity * dayNightFactor;
+        
+        // Calculate blur (more blurry when higher up)
+        // Note: Three.js doesn't support runtime blur, but we can simulate it with scale
+        const stretch = 1 + (normalizedHeight * 0.5); // Stretch the shadow horizontally when higher up
+        
+        return { scale, opacity, stretch };
+    }
+
+    // Update player shadow
+    if (playerShadow && player) {
+        const { y: shadowY, distance: playerHeight } = findShadowY(player.position.x, player.position.y);
+        const { scale, opacity, stretch } = calculateShadowProperties(playerHeight);
+        
+        playerShadow.position.set(
+            player.position.x,
+            shadowY - 0.28, // Slight offset to prevent z-fighting
+            player.position.z
+        );
+        playerShadow.scale.set(scale * stretch, scale * 0.5, 1);
+        playerShadow.material.opacity = opacity;
+    }
+
+    // Update enemy shadows
+    enemies.forEach(enemy => {
+        const enemyShadow = enemy.shadow;
+        if (enemyShadow) {
+            const { y: shadowY, distance: enemyHeight } = findShadowY(
+                enemy.mesh.position.x, 
+                enemy.mesh.position.y
+            );
+            
+            let { scale, opacity, stretch } = calculateShadowProperties(enemyHeight);
+            
+            // Adjust scale and position for boss enemies
+            if (enemy.mesh.isBoss) {
+                scale *= 2.5;
+                stretch *= 1.2;
+                // Position the shadow lower for the boss
+                enemyShadow.position.set(
+                    enemy.mesh.position.x,
+                    shadowY - 0.65, // Keep slight offset to prevent z-fighting
+                    enemy.mesh.position.z
+                );
+            } else {
+                enemyShadow.position.set(
+                    enemy.mesh.position.x,
+                    shadowY -0.28,
+                    enemy.mesh.position.z
+                );
+            }
+            
+            enemyShadow.scale.set(scale * stretch, scale * 0.5, 1);
+            enemyShadow.material.opacity = opacity;
+        }
+    });
 }
 
 // Game loop logic, to be called in animate
@@ -1070,6 +1132,26 @@ function updateScore() {
     }
 }
 
+// Add a new function for boss notifications
+function showBossNotification() {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.innerHTML = `
+        <h2>Boss Round!</h2>
+        <p>Defeat the mighty Minotaur!</p>
+    `;
+    
+    const container = document.getElementById('notificationContainer');
+    if (container) {
+        container.appendChild(notification);
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    } else {
+        console.error('Notification container not found!');
+    }
+}
+
 // Update the spawnRoundEnemies function
 function spawnRoundEnemies(scene) {
     console.log(`Starting round ${currentRound}`); // Debug log
@@ -1086,11 +1168,8 @@ function spawnRoundEnemies(scene) {
             bossSpawned = true;
         }
         
-        // Show boss round notification
-        showUnlockNotification(
-            "Boss Round!", 
-            "Defeat the mighty Minotaur!"
-        );
+        // Show boss round notification using the new function
+        showBossNotification();
     } else {
         // Normal round - spawn multiple regular enemies
         const totalEnemies = currentRound * 3;
@@ -1099,4 +1178,13 @@ function spawnRoundEnemies(scene) {
     }
     
     roundActive = true;
+}
+
+// Add function to calculate boss health based on how many boss rounds have occurred
+function calculateBossHealth() {
+    // Since boss appears every BOSS_ROUNDS_INTERVAL rounds,
+    // we can calculate which boss fight this is
+    const bossNumber = Math.floor(currentRound / BOSS_ROUNDS_INTERVAL);
+    // Each subsequent boss gets 4 more health than the previous
+    return BASE_BOSS_HEALTH + (bossNumber - 1) * 4;
 }
