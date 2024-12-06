@@ -293,7 +293,6 @@ function attack(scene, clawLength) {
     canAttack = false;
     lastAttack = time;
 
-    // Load the claw texture
     loader.load('assets/claw_animation.png', (clawTexture) => {
       // Configure the texture for the main (first) claw
       clawTexture.wrapS = THREE.ClampToEdgeWrapping;
@@ -349,8 +348,13 @@ function attack(scene, clawLength) {
       }
 
       scene.add(claw);
-      console.log("claw now attacking");
-
+      if (twoSidedClawEnabled) {
+        scene.add(claw2);
+      }
+      
+      // Create arrays to store enemies to remove
+      const enemiesToRemove = [];
+      
       // Check for collisions with enemies
       enemies.forEach((enemy, index) => {
         const enemyBounds = getObjectBounds(enemy.mesh);
@@ -368,27 +372,31 @@ function attack(scene, clawLength) {
         };
 
         if (checkCollision(enemyBounds, clawBounds) || checkCollision(enemyBounds, clawBounds2)) {
-          console.log("hit enemy");
-          // Store enemy position before removing it
-          const enemyPos = {
-            x: enemy.mesh.position.x,
-            y: enemy.mesh.position.y
-          };
-          
-          scene.remove(enemy.mesh);  // Remove enemy from scene
-          scene.remove(enemy.shadow);
-          enemies.splice(index, 1);  // Remove enemy from array
-          score++; // Increment score when enemy is defeated
-          updateScore(); // Update the score display
-
-          // 10% chance to spawn a fish
-          if (Math.random() < 0.2) {
-            createFish(scene, enemyPos.x, enemyPos.y - 0.2);
-          }
+          enemiesToRemove.push({
+            enemy: enemy,
+            position: {
+              x: enemy.mesh.position.x,
+              y: enemy.mesh.position.y
+            }
+          });
         }
       });
 
-      // Remove the claws from the scene after the attack duration
+      // Remove enemies and spawn fish after collision checks are complete
+      enemiesToRemove.forEach(({enemy, position}) => {
+        scene.remove(enemy.mesh);
+        scene.remove(enemy.shadow);
+        enemies.splice(enemies.indexOf(enemy), 1);
+        score++;
+        updateScore();
+
+        // 20% chance to spawn a fish
+        if (Math.random() < 0.2) {
+          createFish(scene, position.x, position.y - 0.2);
+        }
+      });
+
+      // Remove the claws after attack duration
       setTimeout(() => {
         scene.remove(claw);
         if (twoSidedClawEnabled) {
