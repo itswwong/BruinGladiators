@@ -126,6 +126,24 @@ const BASE_BOSS_HEALTH = 8; // Base health for first boss
 let isBossRound = false;
 let bossSpawned = false; // New flag to prevent multiple boss spawns
 
+// Add at the top with other variables
+let attackSprites = {
+    punch1: null,
+    punch2: null
+};
+
+// Preload the textures
+function preloadAttackSprites() {
+    loader.load('assets/bear_punch1.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        attackSprites.punch1 = texture;
+    });
+    loader.load('assets/bear_punch2.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        attackSprites.punch2 = texture;
+    });
+}
+
 // Modify the initGame function to initialize round variables
 export function initGame(scene) {
     gameActive = true;  // Reset game state
@@ -215,6 +233,9 @@ export function initGame(scene) {
     
     // Remove the existing enemy spawn code since we'll handle it in spawnRoundEnemies
     spawnRoundEnemies(scene);
+
+    // Preload attack sprites
+    preloadAttackSprites();
 }
 
 function showUnlockNotification(clawName, description) {
@@ -439,186 +460,157 @@ function createGround(scene, x, y, width, height) {
     });
 }
 
+// Modify the attack function to include both animations
 function attack(scene, clawLength) {
-  let time = Date.now();
+    let time = Date.now();
 
-  if (canAttack && time - lastAttack >= cooldown) {
-    canAttack = false;
-    lastAttack = time;
+    if (canAttack && time - lastAttack >= cooldown) {
+        canAttack = false;
+        lastAttack = time;
 
-    loader.load('assets/claw_animation.png', (clawTexture) => {
-      clawTexture.wrapS = THREE.ClampToEdgeWrapping;
-      clawTexture.wrapT = THREE.ClampToEdgeWrapping;
-      clawTexture.repeat.set(1, 1);
+        // Duration for each frame
+        const frameDuration = 100; // 100ms per frame
+        const startTime = Date.now();
+        
+        // Save original player texture
+        const originalTexture = player.material.map;
 
-      // Flip texture for left-facing attacks
-      if (!facingRight) {
-        clawTexture.repeat.x = -1;
-        clawTexture.offset.x = 1;
-      } else {
-        clawTexture.repeat.x = 1;
-        clawTexture.offset.x = 0;
-      }
+        // Create the slash effect
+        loader.load('assets/claw_animation.png', (clawTexture) => {
+            clawTexture.magFilter = THREE.NearestFilter;
+            
+            const clawMat = new THREE.MeshBasicMaterial({ 
+                map: clawTexture, 
+                transparent: true 
+            });
 
-      const clawMat = new THREE.MeshBasicMaterial({ map: clawTexture, transparent: true });
-      const clawG = new THREE.BoxGeometry(clawLength, 0.3, 0.3);
-      
-      // Move the geometry's pivot point to one end
-      clawG.translate(clawLength/2, 0, 0);
-      
-      const claw = new THREE.Mesh(clawG, clawMat);
-      
-      // Initial position
-      claw.position.set(
-        player.position.x,
-        player.position.y + 1,
-        player.position.z
-      );
+            const clawG = new THREE.BoxGeometry(clawLength, 0.3, 0.3);
+            const claw = new THREE.Mesh(clawG, clawMat);
+            
+            // Handle facing direction through mesh scale
+            if (!facingRight) {
+                claw.scale.x = -1;
+            }
+            
+            // Position the claw relative to player with increased distance
+            claw.position.set(
+                player.position.x + (facingRight ? clawLength/2 + 0.1 : -(clawLength/2 + 0.1)), // Added 0.5 units of distance
+                player.position.y + 0.2,
+                player.position.z
+            );
 
-      // Create second claw if two-sided attack is enabled
-      const claw2 = twoSidedClawEnabled ? claw.clone() : null;
-      if (claw2) {
-        claw2.position.x = player.position.x;
-        claw2.position.y = player.position.y + 1;
-        claw2.material = clawMat.clone();
-        if (facingRight) {
-          claw2.material.map.repeat.x = -1;
-          claw2.material.map.offset.x = 1;
-          claw2.rotation.z = Math.PI;
-        }
-        scene.add(claw2); 
-      }
+            scene.add(claw);
 
-      scene.add(claw);
+            // Animate both the player and the claw
+            function animateAttack() {
+                const now = Date.now();
+                const elapsed = now - startTime;
 
-      // Animation parameters
-      const duration = 200;
-      const startTime = Date.now();
-      // Adjusted angles for consistent up-to-down motion
-      const startAngle = facingRight ? Math.PI/3 : -2*Math.PI/3;  // Start at up position
-      const endAngle = facingRight ? -Math.PI/3 : -4*Math.PI/3;   // End at down position
-      const startY = player.position.y + 1;
-      const endY = player.position.y - 0.5;
-      const startScale = 0.8;
-      const endScale = 1.2;
+                // Player punch animation - maintain scale while changing texture
+                if (elapsed < frameDuration) {
+                    if (attackSprites.punch1) {
+                        player.material.map = attackSprites.punch1;
+                        // Maintain correct facing direction
+                        player.scale.x = facingRight ? 1 : -1;
+                    }
+                } else if (elapsed < frameDuration * 2) {
+                    if (attackSprites.punch2) {
+                        player.material.map = attackSprites.punch2;
+                        // Maintain correct facing direction
+                        player.scale.x = facingRight ? 1 : -1;
+                    }
+                } else if (elapsed < frameDuration * 3) {
+                    player.material.map = originalTexture;
+                    // Maintain correct facing direction
+                    player.scale.x = facingRight ? 1 : -1;
+                }
 
-      // Animation function
-      function animate() {
-        const now = Date.now();
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
+                // Claw slash animation
+                if (elapsed < frameDuration * 3) {
+                    // Update claw position to follow player with same increased distance
+                    claw.position.x = player.position.x + (facingRight ? clawLength/2 + 0.5 : -(clawLength/2 + 0.5));
+                    claw.position.y = player.position.y + 0.2;
+                    
+                    requestAnimationFrame(animateAttack);
+                } else {
+                    // Animation complete
+                    scene.remove(claw);
+                    canAttack = true;
+                }
+            }
 
-        // Smooth easing function
-        const eased = progress < 0.5 
-          ? 2 * progress * progress 
-          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            // Start animation
+            animateAttack();
 
-        // Update position and rotation
-        const currentAngle = startAngle + (endAngle - startAngle) * eased;
-        const currentY = startY + (endY - startY) * eased;
-        const currentScale = startScale + (endScale - startScale) * eased;
-
-        // Update claw position and rotation
-        claw.position.x = player.position.x;
-        claw.position.y = currentY;
-        claw.rotation.z = facingRight ? currentAngle : -currentAngle;
-        claw.scale.set(currentScale, currentScale, 1);
-
-        if (claw2) {
-          claw2.position.x = player.position.x;
-          claw2.position.y = currentY;
-          claw2.rotation.z = facingRight ? currentAngle + Math.PI : -currentAngle + Math.PI;
-          claw2.scale.set(currentScale, currentScale, 1);
-        }
-
-        // Check for collisions during animation
-        checkAttackCollisions(claw, claw2, scene);
-
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          // Clean up after animation
-          scene.remove(claw);
-          if (claw2) scene.remove(claw2);
-          canAttack = true;
-        }
-      }
-
-      // Start animation
-      animate();
-    });
-  }
+            // Check attack collisions
+            checkAttackCollisions(player, claw, scene);
+        });
+    }
 }
 
 // Separate collision checking into its own function
-function checkAttackCollisions(claw, claw2, scene) {
-  const enemiesToRemove = [];
-  
-  enemies.forEach(enemy => {
-    const enemyBounds = getObjectBounds(enemy.mesh);
-    const clawBounds = {
-      left: claw.position.x - claw.geometry.parameters.width / 2,
-      right: claw.position.x + claw.geometry.parameters.width / 2,
-      top: claw.position.y + claw.geometry.parameters.height / 2,
-      bottom: claw.position.y - claw.geometry.parameters.height / 2,
-    };
-
-    const claw2Bounds = claw2 ? {
-      left: claw2.position.x - claw2.geometry.parameters.width / 2,
-      right: claw2.position.x + claw2.geometry.parameters.width / 2,
-      top: claw2.position.y + claw2.geometry.parameters.height / 2,
-      bottom: claw2.position.y - claw2.geometry.parameters.height / 2,
-    } : null;
-
-    if (checkCollision(enemyBounds, clawBounds) || 
-        (claw2 && checkCollision(enemyBounds, claw2Bounds))) {
-      if (enemy.mesh.isBoss) {
-        enemy.mesh.health--;
-        if (enemy.mesh.health <= 0) {
-          enemiesToRemove.push({
-            enemy: enemy,
-            position: {
-              x: enemy.mesh.position.x,
-              y: enemy.mesh.position.y
-            }
-          });
-          isBossRound = false;
-          bossSpawned = false;
+function checkAttackCollisions(attacker, unused, scene) {
+    const enemiesToRemove = [];
+    
+    enemies.forEach(enemy => {
+        const enemyBounds = getObjectBounds(enemy.mesh);
+        const attackerBounds = getObjectBounds(attacker);
+        
+        // Extend the attack bounds in the direction the player is facing
+        if (facingRight) {
+            attackerBounds.right += clawLength;
+        } else {
+            attackerBounds.left -= clawLength;
         }
-      } else {
-        enemiesToRemove.push({
-          enemy: enemy,
-          position: {
-            x: enemy.mesh.position.x,
-            y: enemy.mesh.position.y
-          }
-        });
-      }
-    }
-  });
 
-  // Handle enemy removal and fish spawning
-  enemiesToRemove.forEach(({enemy, position}) => {
-    scene.remove(enemy.mesh);
-    scene.remove(enemy.shadow);
-    enemies.splice(enemies.indexOf(enemy), 1);
-    score++;
-    updateScore();
+        if (checkCollision(enemyBounds, attackerBounds)) {
+            if (enemy.mesh.isBoss) {
+                enemy.mesh.health--;
+                if (enemy.mesh.health <= 0) {
+                    enemiesToRemove.push({
+                        enemy: enemy,
+                        position: {
+                            x: enemy.mesh.position.x,
+                            y: enemy.mesh.position.y
+                        }
+                    });
+                    isBossRound = false;
+                    bossSpawned = false;
+                }
+            } else {
+                enemiesToRemove.push({
+                    enemy: enemy,
+                    position: {
+                        x: enemy.mesh.position.x,
+                        y: enemy.mesh.position.y
+                    }
+                });
+            }
+        }
+    });
 
-    if (enemies.length === 0) {
-      roundActive = false;
-      roundCompleteTime = Date.now();
-      currentRound++;
-      const roundText = document.getElementById('roundText');
-      if (roundText) {
-        roundText.textContent = `Round ${currentRound}`;
-      }
-    }
+    // Handle enemy removal and fish spawning
+    enemiesToRemove.forEach(({enemy, position}) => {
+        scene.remove(enemy.mesh);
+        scene.remove(enemy.shadow);
+        enemies.splice(enemies.indexOf(enemy), 1);
+        score++;
+        updateScore();
 
-    if (Math.random() < 0.2) {
-      createFish(scene, position.x, position.y - 0.2);
-    }
-  });
+        if (enemies.length === 0) {
+            roundActive = false;
+            roundCompleteTime = Date.now();
+            currentRound++;
+            const roundText = document.getElementById('roundText');
+            if (roundText) {
+                roundText.textContent = `Round ${currentRound}`;
+            }
+        }
+
+        if (Math.random() < 0.2) {
+            createFish(scene, position.x, position.y - 0.2);
+        }
+    });
 }
 
 // Knock the player back when they take damage,
