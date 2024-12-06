@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initGame, gameLoop, isPaused, togglePause, currentRound } from './game';
+import { initGame, gameLoop, isPaused, togglePause, currentRound, switchClaw } from './game';
 
 // Set up the scene
 const scene = new THREE.Scene();
@@ -141,6 +141,28 @@ style.textContent = `
     font-size: 24px;
     user-select: none;
   }
+  #clawInventory {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 10px;
+  }
+  .claw-slot {
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #fff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, sans-serif;
+  }
+  .claw-slot.locked {
+    opacity: 0.5;
+    border-color: #666;
+  }
 `;
 document.head.appendChild(style);
 
@@ -203,6 +225,11 @@ document.addEventListener('keydown', (event) => {
             pauseScreen.style.display = isPaused ? 'flex' : 'none';
         }
     }
+    // Number keys 1-4 for switching claws
+    if (event.key === '1') switchClaw('default');
+    if (event.key === '2') switchClaw('fast');
+    if (event.key === '3') switchClaw('dual');
+    if (event.key === '4') switchClaw('long');
 });
 
 // Add resume button functionality
@@ -257,3 +284,14 @@ function animate() {
     }
 }
 animate();
+
+// Add UI for showing unlocked claws (optional)
+const clawInventory = document.createElement('div');
+clawInventory.id = 'clawInventory';
+clawInventory.innerHTML = `
+    <div class="claw-slot">1</div>
+    <div class="claw-slot locked">2</div>
+    <div class="claw-slot locked">3</div>
+    <div class="claw-slot locked">4</div>
+`;
+document.body.appendChild(clawInventory);

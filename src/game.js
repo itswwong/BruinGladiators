@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 const loader = new THREE.TextureLoader();
 
-let player, platforms = [], clippingPlaneArr = [], keys = {}, enemies = [], doubleClaws = [], fastClaws = [], twoSidedClaws = [], fishes = [];
+let player, platforms = [], clippingPlaneArr = [], keys = {}, enemies = [], fishes = [];
 let playerVelocityY = 0;   // Track vertical velocity for jumping and falling
 const gravity = -0.005;    // Gravity strength
 const jumpStrength = 0.15; // Jump strength
@@ -110,6 +110,16 @@ const ROUND_TRANSITION_DELAY = 3000; // 3 seconds between rounds
 const SPAWN_DELAY = 1000; // 1 second between enemy spawns
 let lastEnemySpawnTime = 0;
 
+// Add inventory system variables
+export let unlockedClaws = {
+    default: true,
+    fast: false,
+    dual: false,
+    long: false
+};
+
+let currentClaw = 'default';
+
 // Modify the initGame function to initialize round variables
 export function initGame(scene) {
     gameActive = true;  // Reset game state
@@ -141,13 +151,27 @@ export function initGame(scene) {
     //const helper = new THREE.PlaneHelper(clippingPlaneArr[0], 10, 0x00ff00);
     //scene.add(helper);
 
-    // Create three different collectible claws, one of each type
-    createClaw(scene, -3.5, -1.75, 1);
-    createClaw(scene, 2, -0.75, 2);
-    createClaw(scene, 5.5, -0.75, 3);
+    // Reset claw unlocks and UI
+    unlockedClaws = {
+        default: true,
+        fast: false,
+        dual: false,
+        long: false
+    };
+    currentClaw = 'default';
+    switchClaw('default');
 
-    // Create dummy to test the player's combat
-    //createEnemy(scene, 2, -3.8);
+    // Reset claw slots UI
+    const slots = document.querySelectorAll('.claw-slot');
+    slots.forEach(slot => {
+        if (slot.dataset.claw === 'default') {
+            slot.classList.remove('locked');
+            slot.classList.add('active');
+        } else {
+            slot.classList.add('locked');
+            slot.classList.remove('active');
+        }
+    });
 
     // Create ground platform
     createGround(scene, 0, mapBounds.bottom + 0.5, mapBounds.right - mapBounds.left, 1);
@@ -185,52 +209,82 @@ export function initGame(scene) {
     spawnRoundEnemies(scene);
 }
 
-// Types:
-// 1 for the double range claw
-// 2 for the quick attack claw
-function createClaw(scene, xCoord, yCoord, type) {
-  const clawWidth = 1; // Default claw width
-  const clawHeight = 1; // Default claw height
+// Add function to check and handle claw unlocks
+function checkClawUnlocks() {
+    if (currentRound === 3 && !unlockedClaws.fast) {
+        unlockedClaws.fast = true;
+        console.log("Fast Claw unlocked!");
+        const fastSlot = document.querySelector('[data-claw="fast"]');
+        if (fastSlot) {
+            fastSlot.classList.remove('locked');
+        }
+    }
+    if (currentRound === 5 && !unlockedClaws.dual) {
+        unlockedClaws.dual = true;
+        console.log("Dual Claw unlocked!");
+        const dualSlot = document.querySelector('[data-claw="dual"]');
+        if (dualSlot) {
+            dualSlot.classList.remove('locked');
+        }
+    }
+    if (currentRound === 7 && !unlockedClaws.long) {
+        unlockedClaws.long = true;
+        console.log("Long Claw unlocked!");
+        const longSlot = document.querySelector('[data-claw="long"]');
+        if (longSlot) {
+            longSlot.classList.remove('locked');
+        }
+    }
+}
 
-  if (type == 1) {
-    loader.load('assets/long_claw.png', (texture) => {
-      texture.magFilter = THREE.NearestFilter;
+// Add function to switch claws
+export function switchClaw(clawType) {
+    if (!unlockedClaws[clawType]) return;
 
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const geometry = new THREE.PlaneGeometry(clawWidth, clawHeight);
+    // Update UI
+    const weaponDisplay = document.getElementById('weaponDisplay');
+    const slots = document.querySelectorAll('.claw-slot');
+    slots.forEach(slot => slot.classList.remove('active'));
+    const activeSlot = document.querySelector(`[data-claw="${clawType}"]`);
+    if (activeSlot) {
+        activeSlot.classList.add('active');
+    }
 
-      const clawMesh = new THREE.Mesh(geometry, material);
-      clawMesh.position.set(xCoord, yCoord, 0);
-      doubleClaws.push(clawMesh);
-      scene.add(clawMesh);
-    });
-  }
-  if (type == 2) {
-    loader.load('assets/fast_claw.png', (texture) => {
-      texture.magFilter = THREE.NearestFilter;
-
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const geometry = new THREE.PlaneGeometry(clawWidth, clawHeight);
-
-      const clawMesh = new THREE.Mesh(geometry, material);
-      clawMesh.position.set(xCoord, yCoord, 0);
-      fastClaws.push(clawMesh);
-      scene.add(clawMesh);
-    });
-  }
-  if (type == 3) {
-    loader.load('assets/dual_claws.png', (texture) => {
-      texture.magFilter = THREE.NearestFilter;
-
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const geometry = new THREE.PlaneGeometry(clawWidth, clawHeight);
-
-      const clawMesh = new THREE.Mesh(geometry, material);
-      clawMesh.position.set(xCoord, yCoord, 0);
-      twoSidedClaws.push(clawMesh);
-      scene.add(clawMesh);
-    });
-  }
+    currentClaw = clawType;
+    switch (clawType) {
+        case 'default':
+            if (weaponDisplay) weaponDisplay.textContent = 'Default Claw';
+            doubleClawEnabled = false;
+            fastClawEnabled = false;
+            twoSidedClawEnabled = false;
+            clawLength = 3;
+            cooldown = 1000;
+            break;
+        case 'fast':
+            if (weaponDisplay) weaponDisplay.textContent = 'Fast Claw';
+            doubleClawEnabled = false;
+            fastClawEnabled = true;
+            twoSidedClawEnabled = false;
+            clawLength = 3;
+            cooldown = 500;
+            break;
+        case 'dual':
+            if (weaponDisplay) weaponDisplay.textContent = 'Dual Claw';
+            doubleClawEnabled = false;
+            fastClawEnabled = false;
+            twoSidedClawEnabled = true;
+            clawLength = 3;
+            cooldown = 1000;
+            break;
+        case 'long':
+            if (weaponDisplay) weaponDisplay.textContent = 'Long Claw';
+            doubleClawEnabled = true;
+            fastClawEnabled = false;
+            twoSidedClawEnabled = false;
+            clawLength = 6;
+            cooldown = 1000;
+            break;
+    }
 }
 
 function createFish(scene, xCoord, yCoord){
@@ -490,12 +544,9 @@ function handleDamage() {
             console.log("Game Over!");
             gameActive = false;  // Stop the game
             const gameOverScreen = document.getElementById('gameOverScreen');
-            const finalScore = document.getElementById('finalScore');
             if (gameOverScreen) {
                 gameOverScreen.style.display = 'flex';
-                if (finalScore) {
-                    finalScore.textContent = `Score: ${score}`;
-                }
+                document.getElementById('finalRound').textContent = `You Survived Until Round ${currentRound}`;
             }
         }
     }
@@ -516,62 +567,6 @@ function checkFish(scene){
         healthBar.scale.x = playerHealth / 100;
       }
       fishes.splice(fishes.indexOf(fish), 1);
-    }
-  })
-}
-
-function checkClaws(scene){
-  // Check if the player is touching a claw's hit box
-  // If so, the claw should disappear and give them its ability
-  // Abilities cannot stack; the player can only have one ability on them at once
-  doubleClaws.forEach(claw => {
-    const dist = player.position.distanceTo(claw.position);
-    if(dist < 1){
-      console.log("Collected double claw");
-      scene.remove(claw);
-      doubleClawEnabled = true;
-      fastClawEnabled = false;
-      twoSidedClawEnabled = false;
-
-      clawLength = 6;
-      cooldown = 1000;
-
-      let index = doubleClaws.indexOf(claw);
-      doubleClaws.splice(index, 1);
-    }
-  })
-
-  fastClaws.forEach(claw => {
-    const dist = player.position.distanceTo(claw.position);
-    if(dist < 1){
-      console.log("Collected fast claw");
-      scene.remove(claw);
-      doubleClawEnabled = false;
-      fastClawEnabled = true;
-      twoSidedClawEnabled = false;
-
-      clawLength = 3;
-      cooldown = 500;
-
-      let index = fastClaws.indexOf(claw);
-      fastClaws.splice(index, 1);
-    }
-  })
-
-  twoSidedClaws.forEach(claw => {
-    const dist = player.position.distanceTo(claw.position);
-    if(dist < 1){
-      console.log("Collected two sided claw");
-      scene.remove(claw);
-      doubleClawEnabled = false;
-      fastClawEnabled = false;
-      twoSidedClawEnabled = true;
-
-      clawLength = 3;
-      cooldown = 1000;
-      
-      let index = twoSidedClaws.indexOf(claw);
-      twoSidedClaws.splice(index, 1);
     }
   })
 }
@@ -679,8 +674,7 @@ export function gameLoop(scene, dayNightFactor) {
         onGround = true;
     }
 
-    // Check claw collection
-    checkClaws(scene);
+    // Check fish collection
     checkFish(scene);
 
     // Jump if space is pressed and player is on the ground
@@ -715,6 +709,9 @@ export function gameLoop(scene, dayNightFactor) {
 
     // Update shadows for the player and enemies
     updateShadows(dayNightFactor);
+
+    // Check for claw unlocks
+    checkClawUnlocks();
 }
 
 
