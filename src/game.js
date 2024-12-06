@@ -91,9 +91,12 @@ let gameActive = true;
 // Add at the top with other variables
 export let isPaused = false;
 
-// Add pause/unpause function
+// Update pause/unpause function
 export function togglePause() {
-    isPaused = !isPaused;
+    // Only allow pausing if the game is active
+    if (gameActive) {
+        isPaused = !isPaused;
+    }
 }
 
 // Initialize the game
