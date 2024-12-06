@@ -122,7 +122,7 @@ let currentClaw = 'default';
 
 // Add these variables at the top with other state variables
 const BOSS_ROUNDS_INTERVAL = 3; // Boss appears every 4 rounds
-const BOSS_HEALTH = 8; // Boss takes 8 hits to defeat
+const BASE_BOSS_HEALTH = 8; // Base health for first boss
 let isBossRound = false;
 let bossSpawned = false; // New flag to prevent multiple boss spawns
 
@@ -353,16 +353,15 @@ function createEnemy(scene, xCoord, yCoord) {
             const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
             enemyMesh.position.set(xCoord, yCoord, 0);
             enemyMesh.isBoss = true;
-            enemyMesh.health = BOSS_HEALTH;
+            // Calculate boss health based on round number
+            enemyMesh.health = calculateBossHealth();
+            console.log(`Boss spawned with ${enemyMesh.health} health`);
 
             const enemy = new Enemy(enemyMesh);
             
             // Create shadow with adjusted position and scale for boss
             const bossShadow = createShadow({x: xCoord, y: yCoord - 1.4, z: 0});
             bossShadow.scale.set(2.5, 1.25, 1);
-            
-            // Log shadow position for debugging
-            console.log('Boss shadow position:', bossShadow.position);
             
             enemy.shadow = bossShadow;
             enemies.push(enemy);
@@ -1102,4 +1101,13 @@ function spawnRoundEnemies(scene) {
     }
     
     roundActive = true;
+}
+
+// Add function to calculate boss health based on how many boss rounds have occurred
+function calculateBossHealth() {
+    // Since boss appears every BOSS_ROUNDS_INTERVAL rounds,
+    // we can calculate which boss fight this is
+    const bossNumber = Math.floor(currentRound / BOSS_ROUNDS_INTERVAL);
+    // Each subsequent boss gets 4 more health than the previous
+    return BASE_BOSS_HEALTH + (bossNumber - 1) * 4;
 }
