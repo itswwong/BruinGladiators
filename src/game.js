@@ -88,6 +88,14 @@ let playerShadow = null;
 // Add at the top with other variables
 let gameActive = true;
 
+// Add at the top with other variables
+export let isPaused = false;
+
+// Add pause/unpause function
+export function togglePause() {
+    isPaused = !isPaused;
+}
+
 // Initialize the game
 export function initGame(scene) {
     gameActive = true;  // Reset game state
@@ -550,7 +558,7 @@ function updateShadows(dayNightFactor){
 }
 // Game loop logic, to be called in animate
 export function gameLoop(scene, dayNightFactor) {
-    if (!gameActive) return;  // Stop game loop if game is not active
+    if (!gameActive || isPaused) return;  // Stop game loop if game is not active or is paused
     
     // Horizontal movement
     if ((keys['ArrowLeft'] || keys['a']) && player.position.x > mapBounds.left) {
