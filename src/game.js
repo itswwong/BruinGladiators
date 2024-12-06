@@ -880,8 +880,8 @@ export function gameLoop(scene, dayNightFactor) {
     } else if (roundActive && !isBossRound && enemiesRemainingInRound > 0) {
         const currentTime = Date.now();
         if (currentTime - lastEnemySpawnTime >= SPAWN_DELAY) {
-            const randomX = Math.random() * (mapBounds.right - mapBounds.left) + mapBounds.left;
-            createEnemy(scene, randomX, -3.8);
+            const spawnX = getValidSpawnPosition();
+            createEnemy(scene, spawnX, -3.8);
             enemiesRemainingInRound--;
             lastEnemySpawnTime = currentTime;
         }
@@ -1154,30 +1154,47 @@ function showBossNotification() {
 
 // Update the spawnRoundEnemies function
 function spawnRoundEnemies(scene) {
-    console.log(`Starting round ${currentRound}`); // Debug log
+    console.log(`Starting round ${currentRound}`);
     isBossRound = currentRound % BOSS_ROUNDS_INTERVAL === 0;
-    bossSpawned = false; // Reset boss spawn flag at start of round
+    bossSpawned = false;
     
     if (isBossRound) {
-        console.log('This is a boss round!'); // Debug log
-        // Boss round - spawn single boss enemy
+        console.log('This is a boss round!');
         enemiesRemainingInRound = 1;
         if (!bossSpawned) { // Only spawn if we haven't already
             console.log('Spawning boss'); // Debug log
             createEnemy(scene, 0, 0); // Spawn boss at center of screen
             bossSpawned = true;
         }
-        
-        // Show boss round notification using the new function
         showBossNotification();
     } else {
-        // Normal round - spawn multiple regular enemies
         const totalEnemies = currentRound * 3;
         enemiesRemainingInRound = totalEnemies;
         lastEnemySpawnTime = Date.now();
     }
     
     roundActive = true;
+}
+
+// Add this new helper function
+function getValidSpawnPosition() {
+    const MIN_DISTANCE = 4; // Minimum distance from player
+    let spawnX;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+
+    do {
+        spawnX = Math.random() * (mapBounds.right - mapBounds.left) + mapBounds.left;
+        const distance = Math.abs(spawnX - player.position.x);
+        if (distance >= MIN_DISTANCE) {
+            return spawnX;
+        }
+        attempts++;
+    } while (attempts < MAX_ATTEMPTS);
+
+    // If we couldn't find a good position after max attempts,
+    // spawn on the opposite side of the screen from the player
+    return player.position.x > 0 ? mapBounds.left + 1 : mapBounds.right - 1;
 }
 
 // Add function to calculate boss health based on how many boss rounds have occurred
