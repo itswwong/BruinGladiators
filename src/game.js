@@ -359,8 +359,12 @@ function createEnemy(scene, xCoord, yCoord) {
 
             const enemy = new Enemy(enemyMesh);
             
-            // Create shadow with adjusted position and scale for boss
-            const bossShadow = createShadow({x: xCoord, y: yCoord - 1.4, z: 0});
+            // Create shadow with adjusted position for boss
+            const bossShadow = createShadow({
+                x: xCoord, 
+                y: yCoord - 0.4, // Adjusted to be closer to the ground
+                z: 0
+            });
             bossShadow.scale.set(2.5, 1.25, 1);
             
             enemy.shadow = bossShadow;
@@ -648,62 +652,102 @@ function checkFish(scene){
   })
 }
 
+// Enhanced shadow update function
 function updateShadows(dayNightFactor) {
-  const shadowOpacity = 0.5 * dayNightFactor;
+    const MAX_SHADOW_DISTANCE = 5; // Maximum distance for shadow visibility
+    const MIN_SHADOW_SCALE = 0.5;  // Minimum shadow scale when unit is high up
+    const MAX_SHADOW_SCALE = 1.2;  // Maximum shadow scale when unit is on ground
+    const MIN_SHADOW_OPACITY = 0.2; // Minimum shadow opacity when unit is high up
+    const MAX_SHADOW_OPACITY = 0.5; // Maximum shadow opacity when unit is on ground
 
-  // Project shadows onto the nearest surface below each unit
-  function findShadowY(unitX, unitY) {
-    // Start with the map bottom as default
-    let shadowY = mapBounds.bottom;
-    
-    // Check all platforms to find the highest one below the unit's X position
-    platforms.forEach(platform => {
-      const platformBounds = getObjectBounds(platform);
-      // Only check platforms that are directly below the unit's X position
-      if (unitX >= platformBounds.left && unitX <= platformBounds.right) {
-        const platformTop = platformBounds.top;
-        if (platformTop < unitY && platformTop > shadowY) {
-          shadowY = platformTop;
-        }
-      }
-    });
-    
-    return shadowY;
-  }
-
-  // Update player shadow
-  if (playerShadow) {
-    const playerShadowY = findShadowY(player.position.x, player.position.y);
-    playerShadow.position.set(
-      player.position.x,
-      playerShadowY - 0.25,
-      player.position.z
-    );
-    playerShadow.material.opacity = shadowOpacity;
-  }
-
-  // Update enemy shadows
-  enemies.forEach(enemy => {
-    const enemyShadow = enemy.shadow;
-    if (enemyShadow) {
-      const enemyShadowY = findShadowY(enemy.mesh.position.x, enemy.mesh.position.y);
-      
-      if (enemy.mesh.isBoss) {
-        enemyShadow.position.set(
-          enemy.mesh.position.x,
-          enemyShadowY - .6,
-          enemy.mesh.position.z
-        );
-      } else {
-        enemyShadow.position.set(
-          enemy.mesh.position.x,
-          enemyShadowY - 0.25,
-          enemy.mesh.position.z
-        );
-      }
-      enemyShadow.material.opacity = shadowOpacity;
+    // Project shadows onto the nearest surface below each unit
+    function findShadowY(unitX, unitY) {
+        // Start with the map bottom as default
+        let shadowY = mapBounds.bottom;
+        let nearestDistance = Infinity;
+        
+        // Check all platforms to find the highest one below the unit's X position
+        platforms.forEach(platform => {
+            const platformBounds = getObjectBounds(platform);
+            // Only check platforms that are directly below the unit's X position
+            if (unitX >= platformBounds.left && unitX <= platformBounds.right) {
+                const platformTop = platformBounds.top;
+                const distance = unitY - platformTop;
+                if (distance > 0 && distance < nearestDistance) {
+                    shadowY = platformTop;
+                    nearestDistance = distance;
+                }
+            }
+        });
+        
+        return { y: shadowY, distance: nearestDistance };
     }
-  });
+
+    // Calculate shadow properties based on height
+    function calculateShadowProperties(heightDiff) {
+        const normalizedHeight = Math.min(heightDiff, MAX_SHADOW_DISTANCE) / MAX_SHADOW_DISTANCE;
+        
+        // Calculate scale (smaller when higher up)
+        const scale = MAX_SHADOW_SCALE - (normalizedHeight * (MAX_SHADOW_SCALE - MIN_SHADOW_SCALE));
+        
+        // Calculate opacity (more transparent when higher up)
+        const baseOpacity = MAX_SHADOW_OPACITY - (normalizedHeight * (MAX_SHADOW_OPACITY - MIN_SHADOW_OPACITY));
+        const opacity = baseOpacity * dayNightFactor;
+        
+        // Calculate blur (more blurry when higher up)
+        // Note: Three.js doesn't support runtime blur, but we can simulate it with scale
+        const stretch = 1 + (normalizedHeight * 0.5); // Stretch the shadow horizontally when higher up
+        
+        return { scale, opacity, stretch };
+    }
+
+    // Update player shadow
+    if (playerShadow && player) {
+        const { y: shadowY, distance: playerHeight } = findShadowY(player.position.x, player.position.y);
+        const { scale, opacity, stretch } = calculateShadowProperties(playerHeight);
+        
+        playerShadow.position.set(
+            player.position.x,
+            shadowY - 0.28, // Slight offset to prevent z-fighting
+            player.position.z
+        );
+        playerShadow.scale.set(scale * stretch, scale * 0.5, 1);
+        playerShadow.material.opacity = opacity;
+    }
+
+    // Update enemy shadows
+    enemies.forEach(enemy => {
+        const enemyShadow = enemy.shadow;
+        if (enemyShadow) {
+            const { y: shadowY, distance: enemyHeight } = findShadowY(
+                enemy.mesh.position.x, 
+                enemy.mesh.position.y
+            );
+            
+            let { scale, opacity, stretch } = calculateShadowProperties(enemyHeight);
+            
+            // Adjust scale and position for boss enemies
+            if (enemy.mesh.isBoss) {
+                scale *= 2.5;
+                stretch *= 1.2;
+                // Position the shadow lower for the boss
+                enemyShadow.position.set(
+                    enemy.mesh.position.x,
+                    shadowY - 0.65, // Keep slight offset to prevent z-fighting
+                    enemy.mesh.position.z
+                );
+            } else {
+                enemyShadow.position.set(
+                    enemy.mesh.position.x,
+                    shadowY -0.28,
+                    enemy.mesh.position.z
+                );
+            }
+            
+            enemyShadow.scale.set(scale * stretch, scale * 0.5, 1);
+            enemyShadow.material.opacity = opacity;
+        }
+    });
 }
 
 // Game loop logic, to be called in animate
