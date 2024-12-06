@@ -101,7 +101,7 @@ export function togglePause() {
 
 // Add at the top with other variables
 export let currentRound = 1;
-let enemiesRemainingInRound = 10;
+let enemiesRemainingInRound = 3; // Start with 3 enemies in round 1
 let roundActive = true;
 let roundCompleteTime = 0;
 const ROUND_TRANSITION_DELAY = 3000; // 3 seconds between rounds
@@ -201,7 +201,7 @@ export function initGame(scene) {
     document.addEventListener('keyup', (event) => keys[event.key] = false);
 
     currentRound = 1;
-    enemiesRemainingInRound = 10;
+    enemiesRemainingInRound = 3; // Start with 3 enemies
     roundActive = true;
     roundCompleteTime = 0;
     
@@ -209,8 +209,30 @@ export function initGame(scene) {
     spawnRoundEnemies(scene);
 }
 
-// Add function to check and handle claw unlocks
+function showUnlockNotification(clawName, description) {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.innerHTML = `
+        <h2>New Claw Unlocked!</h2>
+        <p>${clawName}</p>
+        <p>${description}</p>
+    `;
+    
+    const container = document.getElementById('notificationContainer');
+    if (container) {
+        container.appendChild(notification);
+        // Remove the notification after animation completes
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    } else {
+        console.error('Notification container not found!');
+    }
+}
+
 function checkClawUnlocks() {
+    console.log('Checking unlocks for round:', currentRound); // Debug log
+
     if (currentRound === 3 && !unlockedClaws.fast) {
         unlockedClaws.fast = true;
         console.log("Fast Claw unlocked!");
@@ -218,6 +240,10 @@ function checkClawUnlocks() {
         if (fastOption) {
             fastOption.classList.remove('locked');
         }
+        showUnlockNotification(
+            "Fast Claw", 
+            "Attack twice as fast with reduced cooldown!"
+        );
     }
     if (currentRound === 5 && !unlockedClaws.dual) {
         unlockedClaws.dual = true;
@@ -226,6 +252,10 @@ function checkClawUnlocks() {
         if (dualOption) {
             dualOption.classList.remove('locked');
         }
+        showUnlockNotification(
+            "Dual Claw", 
+            "Attack in both directions simultaneously!"
+        );
     }
     if (currentRound === 7 && !unlockedClaws.long) {
         unlockedClaws.long = true;
@@ -234,6 +264,10 @@ function checkClawUnlocks() {
         if (longOption) {
             longOption.classList.remove('locked');
         }
+        showUnlockNotification(
+            "Long Claw", 
+            "Extended reach for greater attack range!"
+        );
     }
 }
 
@@ -947,9 +981,9 @@ function updateScore() {
     }
 }
 
-// Add new function to spawn enemies for a round
+// Update the spawnRoundEnemies function
 function spawnRoundEnemies(scene) {
-    const totalEnemies = 10 + (currentRound - 1) * 5;
+    const totalEnemies = currentRound * 3; // 3 enemies per round (3, 6, 9, etc.)
     enemiesRemainingInRound = totalEnemies;
     lastEnemySpawnTime = Date.now();
     roundActive = true;

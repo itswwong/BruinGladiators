@@ -187,6 +187,43 @@ style.textContent = `
     opacity: 0.3;
     cursor: not-allowed;
   }
+  #notificationContainer {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  .notification {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    font-family: Arial, sans-serif;
+    animation: fadeInOut 3s forwards;
+    margin-bottom: 10px;
+  }
+
+  .notification h2 {
+    color: #ffd700;
+    margin: 0 0 10px 0;
+    font-size: 24px;
+  }
+
+  .notification p {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+  }
 `;
 document.head.appendChild(style);
 
@@ -268,8 +305,13 @@ roundContainer.id = 'roundContainer';
 roundContainer.innerHTML = `<div id="roundText">Round 1</div>`;
 document.body.appendChild(roundContainer);
 
-// Game initialization
-initGame(scene, camera);
+// Add this before initGame is called
+const notificationContainer = document.createElement('div');
+notificationContainer.id = 'notificationContainer';
+document.body.appendChild(notificationContainer);
+
+// Initialize the game
+initGame(scene);
 
 // Create weapon display
 const weaponDisplay = document.createElement('div');
