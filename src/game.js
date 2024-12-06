@@ -656,7 +656,7 @@ function updateShadows(dayNightFactor) {
     // Start with the map bottom as default
     let shadowY = mapBounds.bottom;
     
-    // Check all platforms to find the highest one below the unit
+    // Check all platforms to find the highest one below the unit's X position
     platforms.forEach(platform => {
       const platformBounds = getObjectBounds(platform);
       // Only check platforms that are directly below the unit's X position
@@ -1072,6 +1072,26 @@ function updateScore() {
     }
 }
 
+// Add a new function for boss notifications
+function showBossNotification() {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.innerHTML = `
+        <h2>Boss Round!</h2>
+        <p>Defeat the mighty Minotaur!</p>
+    `;
+    
+    const container = document.getElementById('notificationContainer');
+    if (container) {
+        container.appendChild(notification);
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    } else {
+        console.error('Notification container not found!');
+    }
+}
+
 // Update the spawnRoundEnemies function
 function spawnRoundEnemies(scene) {
     console.log(`Starting round ${currentRound}`); // Debug log
@@ -1088,11 +1108,8 @@ function spawnRoundEnemies(scene) {
             bossSpawned = true;
         }
         
-        // Show boss round notification
-        showUnlockNotification(
-            "Boss Round!", 
-            "Defeat the mighty Minotaur!"
-        );
+        // Show boss round notification using the new function
+        showBossNotification();
     } else {
         // Normal round - spawn multiple regular enemies
         const totalEnemies = currentRound * 3;
