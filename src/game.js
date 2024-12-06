@@ -121,7 +121,7 @@ export let unlockedClaws = {
 let currentClaw = 'default';
 
 // Add these variables at the top with other state variables
-const BOSS_ROUNDS_INTERVAL = 5; // Boss appears every 4 rounds
+const BOSS_ROUNDS_INTERVAL = 3; // Boss appears every 4 rounds
 const BOSS_HEALTH = 8; // Boss takes 8 hits to defeat
 let isBossRound = false;
 let bossSpawned = false; // New flag to prevent multiple boss spawns
@@ -241,7 +241,7 @@ function showUnlockNotification(clawName, description) {
 function checkClawUnlocks() {
     console.log('Checking unlocks for round:', currentRound); // Debug log
 
-    if (currentRound === 3 && !unlockedClaws.fast) {
+    if (currentRound === 4 && !unlockedClaws.fast) {
         unlockedClaws.fast = true;
         console.log("Fast Claw unlocked!");
         const fastOption = document.querySelector('.weapon-option[data-claw="fast"]');
@@ -253,7 +253,7 @@ function checkClawUnlocks() {
             "Attack twice as fast with reduced cooldown!"
         );
     }
-    if (currentRound === 5 && !unlockedClaws.dual) {
+    if (currentRound === 7 && !unlockedClaws.dual) {
         unlockedClaws.dual = true;
         console.log("Dual Claw unlocked!");
         const dualOption = document.querySelector('.weapon-option[data-claw="dual"]');
@@ -265,7 +265,7 @@ function checkClawUnlocks() {
             "Attack in both directions simultaneously!"
         );
     }
-    if (currentRound === 7 && !unlockedClaws.long) {
+    if (currentRound === 10 && !unlockedClaws.long) {
         unlockedClaws.long = true;
         console.log("Long Claw unlocked!");
         const longOption = document.querySelector('.weapon-option[data-claw="long"]');
@@ -532,6 +532,9 @@ function attack(scene, clawLength) {
                             y: enemy.mesh.position.y
                         }
                     });
+                    // Reset boss-related flags when boss is defeated
+                    isBossRound = false;
+                    bossSpawned = false;
                 }
             } else {
                 enemiesToRemove.push({
@@ -554,7 +557,7 @@ function attack(scene, clawLength) {
         updateScore();
 
         // Check if round is complete
-        if (enemies.length === 0 && enemiesRemainingInRound === 0) {
+        if (enemies.length === 0) {
             roundActive = false;
             roundCompleteTime = Date.now();
             currentRound++;
