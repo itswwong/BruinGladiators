@@ -47,12 +47,9 @@ function createShadow(pos){
     clippingPlanes: clippingPlaneArr,
   });
   const shadow = new THREE.Mesh(shadowGeom, shadowMat);
-  shadow.position.set(pos.x, pos.y-0.7, pos.z + 3);
+  shadow.position.set(pos.x, pos.y - 0.4, pos.z + 3);
   shadow.scale.set(1, 0.5, 1);
   shadow.layers.set(1);
-  //console.log(clippingPlaneArr)
-  //console.log("clipping planes");
-  //console.log(shadow.material.clippingPlanes);
   return shadow;
 }
 
@@ -121,8 +118,8 @@ export let unlockedClaws = {
 let currentClaw = 'default';
 
 // Add these variables at the top with other state variables
-const BOSS_ROUNDS_INTERVAL = 4; // Boss appears every 4 rounds
-const BOSS_HEALTH = 6; // Boss takes 6 hits to defeat
+const BOSS_ROUNDS_INTERVAL = 5; // Boss appears every 4 rounds
+const BOSS_HEALTH = 8; // Boss takes 8 hits to defeat
 let isBossRound = false;
 let bossSpawned = false; // New flag to prevent multiple boss spawns
 
@@ -340,9 +337,8 @@ function createFish(scene, xCoord, yCoord){
 }
 // Create enemies at the specified coordinates for the given scene
 function createEnemy(scene, xCoord, yCoord) {
-    if (isBossRound && !bossSpawned) { // Only create boss if not already spawned
-        console.log('Creating boss enemy'); // Debug log
-        // Load Minotaur texture for boss
+    if (isBossRound && !bossSpawned) {
+        console.log('Creating boss enemy');
         loader.load('assets/minotaur.png', (texture) => {
             texture.magFilter = THREE.NearestFilter;
             
@@ -355,12 +351,19 @@ function createEnemy(scene, xCoord, yCoord) {
             enemyMesh.health = BOSS_HEALTH;
 
             const enemy = new Enemy(enemyMesh);
-            enemy.shadow = createShadow({x: xCoord, y: yCoord, z: 0});
-            enemy.shadow.scale.set(2, 1, 1);
+            
+            // Create shadow with adjusted position and scale for boss
+            const bossShadow = createShadow({x: xCoord, y: yCoord - 1.4, z: 0});
+            bossShadow.scale.set(2.5, 1.25, 1);
+            
+            // Log shadow position for debugging
+            console.log('Boss shadow position:', bossShadow.position);
+            
+            enemy.shadow = bossShadow;
             enemies.push(enemy);
             scene.add(enemyMesh);
-            scene.add(enemy.shadow);
-            bossSpawned = true; // Mark boss as spawned
+            scene.add(bossShadow);
+            bossSpawned = true;
         });
     } else if (!isBossRound) {
         // Regular enemy spawning logic
@@ -642,20 +645,64 @@ function checkFish(scene){
   })
 }
 
-function updateShadows(dayNightFactor){
+function updateShadows(dayNightFactor) {
   const shadowOpacity = 0.5 * dayNightFactor;
 
-  playerShadow.position.set(player.position.x, player.position.y-0.7, player.position.z);
-  playerShadow.material.opacity = shadowOpacity;
-  console.log(playerShadow.material.clippingPlanes);
-  
+  // Project shadows onto the nearest surface below each unit
+  function findShadowY(unitX, unitY) {
+    // Start with the map bottom as default
+    let shadowY = mapBounds.bottom;
+    
+    // Check all platforms to find the highest one below the unit
+    platforms.forEach(platform => {
+      const platformBounds = getObjectBounds(platform);
+      // Only check platforms that are directly below the unit's X position
+      if (unitX >= platformBounds.left && unitX <= platformBounds.right) {
+        const platformTop = platformBounds.top;
+        if (platformTop < unitY && platformTop > shadowY) {
+          shadowY = platformTop;
+        }
+      }
+    });
+    
+    return shadowY;
+  }
 
-  enemies.forEach((enemy, index) => {
-    let enemyshadow = enemies[index].shadow;
-    enemyshadow.position.set(enemy.mesh.position.x, enemy.mesh.position.y-0.7, enemy.mesh.position.z);
-    enemyshadow.material.opacity = shadowOpacity;
-  })
+  // Update player shadow
+  if (playerShadow) {
+    const playerShadowY = findShadowY(player.position.x, player.position.y);
+    playerShadow.position.set(
+      player.position.x,
+      playerShadowY - 0.25,
+      player.position.z
+    );
+    playerShadow.material.opacity = shadowOpacity;
+  }
+
+  // Update enemy shadows
+  enemies.forEach(enemy => {
+    const enemyShadow = enemy.shadow;
+    if (enemyShadow) {
+      const enemyShadowY = findShadowY(enemy.mesh.position.x, enemy.mesh.position.y);
+      
+      if (enemy.mesh.isBoss) {
+        enemyShadow.position.set(
+          enemy.mesh.position.x,
+          enemyShadowY - .6,
+          enemy.mesh.position.z
+        );
+      } else {
+        enemyShadow.position.set(
+          enemy.mesh.position.x,
+          enemyShadowY - 0.25,
+          enemy.mesh.position.z
+        );
+      }
+      enemyShadow.material.opacity = shadowOpacity;
+    }
+  });
 }
+
 // Game loop logic, to be called in animate
 export function gameLoop(scene, dayNightFactor) {
     if (!gameActive || isPaused) return;  // Stop game loop if game is not active or is paused
