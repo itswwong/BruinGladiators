@@ -472,8 +472,9 @@ function attack(scene, clawLength) {
         const frameDuration = 100; // 100ms per frame
         const startTime = Date.now();
         
-        // Save original player texture
+        // Save original texture and facing direction at start of attack
         const originalTexture = player.material.map;
+        const attackDirection = facingRight; // Lock in attack direction
 
         // Create the slash effect
         loader.load('assets/claw_animation.png', (clawTexture) => {
@@ -487,14 +488,14 @@ function attack(scene, clawLength) {
             const clawG = new THREE.BoxGeometry(clawLength, 0.3, 0.3);
             const claw = new THREE.Mesh(clawG, clawMat);
             
-            // Handle facing direction through mesh scale
-            if (!facingRight) {
+            // Set initial claw direction
+            if (!attackDirection) {
                 claw.scale.x = -1;
             }
             
-            // Position the claw relative to player with increased distance
+            // Position the claw relative to player
             claw.position.set(
-                player.position.x + (facingRight ? clawLength/2 + 0.1 : -(clawLength/2 + 0.1)), // Added 0.5 units of distance
+                player.position.x + (attackDirection ? clawLength/2 + 0.1 : -(clawLength/2 + 0.1)),
                 player.position.y + 0.2,
                 player.position.z
             );
@@ -506,43 +507,34 @@ function attack(scene, clawLength) {
                 const now = Date.now();
                 const elapsed = now - startTime;
 
-                // Player punch animation - maintain scale while changing texture
+                // Player punch animation - maintain attack direction
                 if (elapsed < frameDuration) {
                     if (attackSprites.punch1) {
                         player.material.map = attackSprites.punch1;
-                        // Maintain correct facing direction
-                        player.scale.x = facingRight ? 1 : -1;
+                        player.scale.x = attackDirection ? 1 : -1;
                     }
                 } else if (elapsed < frameDuration * 2) {
                     if (attackSprites.punch2) {
                         player.material.map = attackSprites.punch2;
-                        // Maintain correct facing direction
-                        player.scale.x = facingRight ? 1 : -1;
+                        player.scale.x = attackDirection ? 1 : -1;
                     }
                 } else if (elapsed < frameDuration * 3) {
                     player.material.map = originalTexture;
-                    // Maintain correct facing direction
-                    player.scale.x = facingRight ? 1 : -1;
+                    player.scale.x = facingRight ? 1 : -1; // Return to current facing direction
                 }
 
-                // Claw slash animation
+                // Claw slash animation - maintain attack direction
                 if (elapsed < frameDuration * 3) {
-                    // Update claw position to follow player with same increased distance
-                    claw.position.x = player.position.x + (facingRight ? clawLength/2 + 0.5 : -(clawLength/2 + 0.5));
+                    claw.position.x = player.position.x + (attackDirection ? clawLength/2 + 0.5 : -(clawLength/2 + 0.5));
                     claw.position.y = player.position.y + 0.2;
-                    
                     requestAnimationFrame(animateAttack);
                 } else {
-                    // Animation complete
                     scene.remove(claw);
                     canAttack = true;
                 }
             }
 
-            // Start animation
             animateAttack();
-
-            // Check attack collisions
             checkAttackCollisions(player, claw, scene);
         });
     }
