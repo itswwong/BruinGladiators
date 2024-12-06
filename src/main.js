@@ -163,6 +163,19 @@ style.textContent = `
     opacity: 0.5;
     border-color: #666;
   }
+  #weaponDisplay {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    color: black;
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    user-select: none;
+    z-index: 1000;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+  }
 `;
 document.head.appendChild(style);
 
@@ -247,6 +260,13 @@ document.body.appendChild(roundContainer);
 // Game initialization
 initGame(scene, camera);
 
+// Create weapon display
+const weaponDisplay = document.createElement('div');
+weaponDisplay.id = 'weaponDisplay';
+weaponDisplay.textContent = 'Default Claw';
+document.body.appendChild(weaponDisplay);
+console.log('Weapon display created:', document.getElementById('weaponDisplay'));
+
 // Render loop
 function animate() {
     let timeDelta = 0.01;
@@ -289,9 +309,9 @@ animate();
 const clawInventory = document.createElement('div');
 clawInventory.id = 'clawInventory';
 clawInventory.innerHTML = `
-    <div class="claw-slot">1</div>
-    <div class="claw-slot locked">2</div>
-    <div class="claw-slot locked">3</div>
-    <div class="claw-slot locked">4</div>
+    <div class="claw-slot" data-claw="default">1</div>
+    <div class="claw-slot locked" data-claw="fast">2</div>
+    <div class="claw-slot locked" data-claw="dual">3</div>
+    <div class="claw-slot locked" data-claw="long">4</div>
 `;
 document.body.appendChild(clawInventory);
