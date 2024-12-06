@@ -28,8 +28,8 @@ let fastClawEnabled = false;
 let twoSidedClawEnabled = false;
 
 // length, material, and mesh of claw
-// The default length is 3
-let clawLength = 3;
+// The default length is 1.5
+let clawLength = 1.5;
 
 // Add health-related variables
 let playerHealth = 100;
@@ -297,28 +297,28 @@ export function switchClaw(clawType) {
             doubleClawEnabled = false;
             fastClawEnabled = false;
             twoSidedClawEnabled = false;
-            clawLength = 3;
+            clawLength = 1.5;
             cooldown = 1000;
             break;
         case 'fast':
             doubleClawEnabled = false;
             fastClawEnabled = true;
             twoSidedClawEnabled = false;
-            clawLength = 3;
+            clawLength = 1.5;
             cooldown = 500;
             break;
         case 'dual':
             doubleClawEnabled = false;
             fastClawEnabled = false;
             twoSidedClawEnabled = true;
-            clawLength = 3;
+            clawLength = 1.5;
             cooldown = 1000;
             break;
         case 'long':
             doubleClawEnabled = true;
             fastClawEnabled = false;
             twoSidedClawEnabled = false;
-            clawLength = 6;
+            clawLength = 3;
             cooldown = 1000;
             break;
     }
@@ -447,146 +447,178 @@ function attack(scene, clawLength) {
     lastAttack = time;
 
     loader.load('assets/claw_animation.png', (clawTexture) => {
-      // Configure the texture for the main (first) claw
       clawTexture.wrapS = THREE.ClampToEdgeWrapping;
       clawTexture.wrapT = THREE.ClampToEdgeWrapping;
-      clawTexture.repeat.set(1, 1);  // Prevent repeating
+      clawTexture.repeat.set(1, 1);
 
       // Flip texture for left-facing attacks
       if (!facingRight) {
-        clawTexture.repeat.x = -1;  // Flip horizontally
-        clawTexture.offset.x = 1;   // Offset to correct position after flip
+        clawTexture.repeat.x = -1;
+        clawTexture.offset.x = 1;
       } else {
         clawTexture.repeat.x = 1;
         clawTexture.offset.x = 0;
       }
 
-      // Create the claw material using the loaded texture
       const clawMat = new THREE.MeshBasicMaterial({ map: clawTexture, transparent: true });
-
-      // Create the first claw geometry as a Box
       const clawG = new THREE.BoxGeometry(clawLength, 0.3, 0.3);
+      
+      // Move the geometry's pivot point to one end
+      clawG.translate(clawLength/2, 0, 0);
+      
       const claw = new THREE.Mesh(clawG, clawMat);
-      claw.position.set(player.position.x + (facingRight ? 0.5 : -0.5), player.position.y, player.position.z);
-      claw.rotation.z = 0;  // Align the claw horizontally
+      
+      // Initial position
+      claw.position.set(
+        player.position.x,
+        player.position.y + 1,
+        player.position.z
+      );
 
-      // Position adjustments for double and two-sided claws
-      let claw2Pos = player.position.x;
-      if (facingRight) {
-        claw.position.x += doubleClawEnabled ? 3.0 : 1.5;
-        claw2Pos -= 2;
-      } else {
-        claw.position.x -= doubleClawEnabled ? 3.0 : 1.5;
-        claw2Pos += 2;
-      }
-
-      // Clone and position the second claw if enabled
-      const claw2 = claw.clone();
-
-      // Adjust the texture for the second claw if the player is using a two-sided claw
-      if (twoSidedClawEnabled) {
-        claw2.position.set(claw2Pos, player.position.y, player.position.z);
-
-        // Flip the texture for the second claw to face the opposite direction
-        claw2.material = clawMat.clone();  // Use a separate material to avoid shared texture state
+      // Create second claw if two-sided attack is enabled
+      const claw2 = twoSidedClawEnabled ? claw.clone() : null;
+      if (claw2) {
+        claw2.position.x = player.position.x;
+        claw2.position.y = player.position.y + 1;
+        claw2.material = clawMat.clone();
         if (facingRight) {
-          claw2.material.map.repeat.x = -1;  // Flip to face left
-          claw2.material.map.offset.x = 1;   // Adjust offset for the flip
-        } else {
-          claw2.material.map.repeat.x = 1;   // Face right as normal
-          claw2.material.map.offset.x = 0;
+          claw2.material.map.repeat.x = -1;
+          claw2.material.map.offset.x = 1;
+          claw2.rotation.z = Math.PI;
         }
-
-        scene.add(claw2);
+        scene.add(claw2); 
       }
 
       scene.add(claw);
-      if (twoSidedClawEnabled) {
-        scene.add(claw2);
+
+      // Animation parameters
+      const duration = 200;
+      const startTime = Date.now();
+      // Adjusted angles for consistent up-to-down motion
+      const startAngle = facingRight ? Math.PI/3 : -2*Math.PI/3;  // Start at up position
+      const endAngle = facingRight ? -Math.PI/3 : -4*Math.PI/3;   // End at down position
+      const startY = player.position.y + 1;
+      const endY = player.position.y - 0.5;
+      const startScale = 0.8;
+      const endScale = 1.2;
+
+      // Animation function
+      function animate() {
+        const now = Date.now();
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Smooth easing function
+        const eased = progress < 0.5 
+          ? 2 * progress * progress 
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+        // Update position and rotation
+        const currentAngle = startAngle + (endAngle - startAngle) * eased;
+        const currentY = startY + (endY - startY) * eased;
+        const currentScale = startScale + (endScale - startScale) * eased;
+
+        // Update claw position and rotation
+        claw.position.x = player.position.x;
+        claw.position.y = currentY;
+        claw.rotation.z = facingRight ? currentAngle : -currentAngle;
+        claw.scale.set(currentScale, currentScale, 1);
+
+        if (claw2) {
+          claw2.position.x = player.position.x;
+          claw2.position.y = currentY;
+          claw2.rotation.z = facingRight ? currentAngle + Math.PI : -currentAngle + Math.PI;
+          claw2.scale.set(currentScale, currentScale, 1);
+        }
+
+        // Check for collisions during animation
+        checkAttackCollisions(claw, claw2, scene);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          // Clean up after animation
+          scene.remove(claw);
+          if (claw2) scene.remove(claw2);
+          canAttack = true;
+        }
       }
-      
-      // Create arrays to store enemies to remove
-      const enemiesToRemove = [];
-      
-      // Check for collisions with enemies
-      enemies.forEach((enemy, index) => {
-        const enemyBounds = getObjectBounds(enemy.mesh);
-        const clawBounds = {
-          left: claw.position.x - clawLength / 2,
-          right: claw.position.x + clawLength / 2,
-          top: claw.position.y + 0.05,
-          bottom: claw.position.y - 0.05,
-        };
-        const clawBounds2 = {
-          left: claw2.position.x - clawLength / 2,
-          right: claw2.position.x + clawLength / 2,
-          top: claw2.position.y + 0.05,
-          bottom: claw2.position.y - 0.05,
-        };
 
-        if (checkCollision(enemyBounds, clawBounds) || (twoSidedClawEnabled && checkCollision(enemyBounds, clawBounds2))) {
-            if (enemy.mesh.isBoss) {
-                enemy.mesh.health--;
-                if (enemy.mesh.health <= 0) {
-                    enemiesToRemove.push({
-                        enemy: enemy,
-                        position: {
-                            x: enemy.mesh.position.x,
-                            y: enemy.mesh.position.y
-                        }
-                    });
-                    // Reset boss-related flags when boss is defeated
-                    isBossRound = false;
-                    bossSpawned = false;
-                }
-            } else {
-                enemiesToRemove.push({
-                    enemy: enemy,
-                    position: {
-                        x: enemy.mesh.position.x,
-                        y: enemy.mesh.position.y
-                    }
-                });
-            }
-        }
-      });
-
-      // Remove enemies and spawn fish after collision checks are complete
-      enemiesToRemove.forEach(({enemy, position}) => {
-        scene.remove(enemy.mesh);
-        scene.remove(enemy.shadow);
-        enemies.splice(enemies.indexOf(enemy), 1);
-        score++;
-        updateScore();
-
-        // Check if round is complete
-        if (enemies.length === 0) {
-            roundActive = false;
-            roundCompleteTime = Date.now();
-            currentRound++;
-            // Update UI to show round complete
-            const roundText = document.getElementById('roundText');
-            if (roundText) {
-                roundText.textContent = `Round ${currentRound}`;
-            }
-        }
-
-        // 20% chance to spawn a fish
-        if (Math.random() < 0.2) {
-          createFish(scene, position.x, position.y - 0.2);
-        }
-      });
-
-      // Remove the claws after attack duration
-      setTimeout(() => {
-        scene.remove(claw);
-        if (twoSidedClawEnabled) {
-          scene.remove(claw2);
-        }
-        canAttack = true;
-      }, 200);
+      // Start animation
+      animate();
     });
   }
+}
+
+// Separate collision checking into its own function
+function checkAttackCollisions(claw, claw2, scene) {
+  const enemiesToRemove = [];
+  
+  enemies.forEach(enemy => {
+    const enemyBounds = getObjectBounds(enemy.mesh);
+    const clawBounds = {
+      left: claw.position.x - claw.geometry.parameters.width / 2,
+      right: claw.position.x + claw.geometry.parameters.width / 2,
+      top: claw.position.y + claw.geometry.parameters.height / 2,
+      bottom: claw.position.y - claw.geometry.parameters.height / 2,
+    };
+
+    const claw2Bounds = claw2 ? {
+      left: claw2.position.x - claw2.geometry.parameters.width / 2,
+      right: claw2.position.x + claw2.geometry.parameters.width / 2,
+      top: claw2.position.y + claw2.geometry.parameters.height / 2,
+      bottom: claw2.position.y - claw2.geometry.parameters.height / 2,
+    } : null;
+
+    if (checkCollision(enemyBounds, clawBounds) || 
+        (claw2 && checkCollision(enemyBounds, claw2Bounds))) {
+      if (enemy.mesh.isBoss) {
+        enemy.mesh.health--;
+        if (enemy.mesh.health <= 0) {
+          enemiesToRemove.push({
+            enemy: enemy,
+            position: {
+              x: enemy.mesh.position.x,
+              y: enemy.mesh.position.y
+            }
+          });
+          isBossRound = false;
+          bossSpawned = false;
+        }
+      } else {
+        enemiesToRemove.push({
+          enemy: enemy,
+          position: {
+            x: enemy.mesh.position.x,
+            y: enemy.mesh.position.y
+          }
+        });
+      }
+    }
+  });
+
+  // Handle enemy removal and fish spawning
+  enemiesToRemove.forEach(({enemy, position}) => {
+    scene.remove(enemy.mesh);
+    scene.remove(enemy.shadow);
+    enemies.splice(enemies.indexOf(enemy), 1);
+    score++;
+    updateScore();
+
+    if (enemies.length === 0) {
+      roundActive = false;
+      roundCompleteTime = Date.now();
+      currentRound++;
+      const roundText = document.getElementById('roundText');
+      if (roundText) {
+        roundText.textContent = `Round ${currentRound}`;
+      }
+    }
+
+    if (Math.random() < 0.2) {
+      createFish(scene, position.x, position.y - 0.2);
+    }
+  });
 }
 
 // Knock the player back when they take damage,
