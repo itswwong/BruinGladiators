@@ -440,8 +440,12 @@ function handleDamage() {
             console.log("Game Over!");
             gameActive = false;  // Stop the game
             const gameOverScreen = document.getElementById('gameOverScreen');
+            const finalScore = document.getElementById('finalScore');
             if (gameOverScreen) {
                 gameOverScreen.style.display = 'flex';
+                if (finalScore) {
+                    finalScore.textContent = `Score: ${score}`;
+                }
             }
         }
     }
