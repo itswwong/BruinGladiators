@@ -85,8 +85,12 @@ let score = 0;
 //
 let playerShadow = null;
 
+// Add at the top with other variables
+let gameActive = true;
+
 // Initialize the game
 export function initGame(scene) {
+    gameActive = true;  // Reset game state
     score = 0; // Reset score when game starts
     // Reset health on game init
     playerHealth = 100;
@@ -434,6 +438,7 @@ function handleDamage() {
         
         if (playerHealth <= 0) {
             console.log("Game Over!");
+            gameActive = false;  // Stop the game
             const gameOverScreen = document.getElementById('gameOverScreen');
             if (gameOverScreen) {
                 gameOverScreen.style.display = 'flex';
@@ -533,7 +538,8 @@ function updateShadows(dayNightFactor){
 }
 // Game loop logic, to be called in animate
 export function gameLoop(scene, dayNightFactor) {
-
+    if (!gameActive) return;  // Stop game loop if game is not active
+    
     // Horizontal movement
     if ((keys['ArrowLeft'] || keys['a']) && player.position.x > mapBounds.left) {
         player.position.x -= 0.05;
