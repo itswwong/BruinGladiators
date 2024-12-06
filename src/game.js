@@ -126,21 +126,53 @@ const BASE_BOSS_HEALTH = 8; // Base health for first boss
 let isBossRound = false;
 let bossSpawned = false; // New flag to prevent multiple boss spawns
 
-// Add at the top with other variables
-let attackSprites = {
-    punch1: null,
-    punch2: null
+// Update the sprite storage at the top
+let playerAttackSprites = {
+    attack1: null,
+    attack2: null
 };
 
-// Preload the textures
+let enemyAttackSprites = {
+    spartan: {
+        attack1: null,
+        attack2: null
+    },
+    boss: {
+        attack1: null,
+        attack2: null
+    }
+};
+
+// Update the preload function
 function preloadAttackSprites() {
+    // Load player (bear) attack sprites
     loader.load('assets/bear_punch1.png', (texture) => {
         texture.magFilter = THREE.NearestFilter;
-        attackSprites.punch1 = texture;
+        playerAttackSprites.attack1 = texture;
     });
     loader.load('assets/bear_punch2.png', (texture) => {
         texture.magFilter = THREE.NearestFilter;
-        attackSprites.punch2 = texture;
+        playerAttackSprites.attack2 = texture;
+    });
+    
+    // Load spartan attack sprites
+    loader.load('assets/spartan_attack1.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        enemyAttackSprites.spartan.attack1 = texture;
+    });
+    loader.load('assets/spartan_attack2.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        enemyAttackSprites.spartan.attack2 = texture;
+    });
+    
+    // Load boss attack sprites
+    loader.load('assets/minotaur_attack1.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        enemyAttackSprites.boss.attack1 = texture;
+    });
+    loader.load('assets/minotaur_attack2.png', (texture) => {
+        texture.magFilter = THREE.NearestFilter;
+        enemyAttackSprites.boss.attack2 = texture;
     });
 }
 
@@ -460,7 +492,7 @@ function createGround(scene, x, y, width, height) {
     });
 }
 
-// Modify the attack function to include both animations
+// Update the attack function to use player sprites
 function attack(scene, clawLength) {
     let time = Date.now();
 
@@ -509,13 +541,13 @@ function attack(scene, clawLength) {
 
                 // Player punch animation - maintain attack direction
                 if (elapsed < frameDuration) {
-                    if (attackSprites.punch1) {
-                        player.material.map = attackSprites.punch1;
+                    if (playerAttackSprites.attack1) {
+                        player.material.map = playerAttackSprites.attack1;
                         player.scale.x = attackDirection ? 1 : -1;
                     }
                 } else if (elapsed < frameDuration * 2) {
-                    if (attackSprites.punch2) {
-                        player.material.map = attackSprites.punch2;
+                    if (playerAttackSprites.attack2) {
+                        player.material.map = playerAttackSprites.attack2;
                         player.scale.x = attackDirection ? 1 : -1;
                     }
                 } else if (elapsed < frameDuration * 3) {
@@ -626,10 +658,52 @@ function knockPlayer(){
 }
 
 
-// Add damage handling function
-function handleDamage() {
+// Update the animation function to handle both enemy types
+function playEnemyAttackAnimation(enemy) {
+    if (!enemy.isAttacking) {
+        enemy.isAttacking = true;
+        const originalTexture = enemy.mesh.material.map;
+        const startTime = Date.now();
+        const frameDuration = 150; // 150ms per frame
+        
+        // Determine which sprite set to use
+        const sprites = enemy.mesh.isBoss ? 
+            enemyAttackSprites.boss : 
+            enemyAttackSprites.spartan;
+
+        function animateAttack() {
+            const elapsed = Date.now() - startTime;
+
+            if (elapsed < frameDuration) {
+                if (sprites.attack1) {
+                    enemy.mesh.material.map = sprites.attack1;
+                }
+            } else if (elapsed < frameDuration * 2) {
+                if (sprites.attack2) {
+                    enemy.mesh.material.map = sprites.attack2;
+                }
+            } else {
+                enemy.mesh.material.map = originalTexture;
+                enemy.isAttacking = false;
+                return;
+            }
+
+            requestAnimationFrame(animateAttack);
+        }
+
+        animateAttack();
+    }
+}
+
+// Update the handleDamage function
+function handleDamage(enemy = null) {
     const currentTime = Date.now();
     if (currentTime - lastDamageTime >= damageInterval) {
+        // Play attack animation for any enemy type
+        if (enemy) {
+            playEnemyAttackAnimation(enemy);
+        }
+
         playerHealth = Math.max(0, playerHealth - 10);
         player.health = playerHealth;
         lastDamageTime = currentTime;
@@ -786,7 +860,7 @@ export function gameLoop(scene, dayNightFactor) {
         const enemyBounds = getObjectBounds(enemy.mesh);
         
         if (checkCollision(playerBounds, enemyBounds)) {
-            handleDamage();
+            handleDamage(enemy); // Pass the enemy to handleDamage
         }
     });
 
