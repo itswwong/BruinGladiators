@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initGame, gameLoop, isPaused, togglePause } from './game';
+import { initGame, gameLoop, isPaused, togglePause, currentRound } from './game';
 
 // Set up the scene
 const scene = new THREE.Scene();
@@ -99,15 +99,6 @@ style.textContent = `
   #restartButton:hover {
     background-color: #ff6666;
   }
-  #scoreContainer {
-    position: fixed;
-    top: 40px;
-    left: 14px;
-    color: black;
-    font-family: Arial, sans-serif;
-    font-size: 24px;
-    user-select: none;
-  }
   #pauseScreen {
     position: fixed;
     top: 0;
@@ -140,6 +131,15 @@ style.textContent = `
   }
   #resumeButton:hover {
     background-color: #66ff66;
+  }
+  #roundContainer {
+    position: fixed;
+    top: 40px;
+    left: 14px;
+    color: black;
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+    user-select: none;
   }
 `;
 document.head.appendChild(style);
@@ -175,16 +175,10 @@ const gameOverScreen = document.createElement('div');
 gameOverScreen.id = 'gameOverScreen';
 gameOverScreen.innerHTML = `
   <h1>GAME OVER</h1>
-  <div id="finalScore" style="font-size: 24px; margin-bottom: 20px;">Score: 0</div>
+  <div id="finalRound" style="font-size: 24px; margin-bottom: 20px;">Round: 1</div>
   <button id="restartButton">Restart Game</button>
 `;
 document.body.appendChild(gameOverScreen);
-
-// Create score display element (add after other UI elements)
-const scoreContainer = document.createElement('div');
-scoreContainer.id = 'scoreContainer';
-scoreContainer.innerHTML = `<div id="scoreText">Score: 0</div>`;
-document.body.appendChild(scoreContainer);
 
 // Add pause screen
 const pauseScreen = document.createElement('div');
@@ -216,6 +210,12 @@ document.getElementById('resumeButton').addEventListener('click', () => {
     togglePause();
     document.getElementById('pauseScreen').style.display = 'none';
 });
+
+// Add round container
+const roundContainer = document.createElement('div');
+roundContainer.id = 'roundContainer';
+roundContainer.innerHTML = `<div id="roundText">Round 1</div>`;
+document.body.appendChild(roundContainer);
 
 // Game initialization
 initGame(scene, camera);
@@ -249,6 +249,7 @@ function animate() {
         
         if (currentHealth <= 0) {
             document.getElementById('gameOverScreen').style.display = 'flex';
+            document.getElementById('finalRound').textContent = `You Survived Until Round ${currentRound}`;
         }
         
         healthBar.position.x = camera.left + .2;

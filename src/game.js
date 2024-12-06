@@ -99,7 +99,18 @@ export function togglePause() {
     }
 }
 
-// Initialize the game
+// Add at the top with other variables
+export let currentRound = 1;
+let enemiesRemainingInRound = 10;
+let roundActive = true;
+let roundCompleteTime = 0;
+const ROUND_TRANSITION_DELAY = 3000; // 3 seconds between rounds
+
+// Add at the top with other variables
+const SPAWN_DELAY = 1000; // 1 second between enemy spawns
+let lastEnemySpawnTime = 0;
+
+// Modify the initGame function to initialize round variables
 export function initGame(scene) {
     gameActive = true;  // Reset game state
     score = 0; // Reset score when game starts
@@ -164,6 +175,14 @@ export function initGame(scene) {
     // Handle keyboard input
     document.addEventListener('keydown', (event) => keys[event.key] = true);
     document.addEventListener('keyup', (event) => keys[event.key] = false);
+
+    currentRound = 1;
+    enemiesRemainingInRound = 10;
+    roundActive = true;
+    roundCompleteTime = 0;
+    
+    // Remove the existing enemy spawn code since we'll handle it in spawnRoundEnemies
+    spawnRoundEnemies(scene);
 }
 
 // Types:
@@ -400,6 +419,18 @@ function attack(scene, clawLength) {
         enemies.splice(enemies.indexOf(enemy), 1);
         score++;
         updateScore();
+
+        // Check if round is complete
+        if (enemies.length === 0 && enemiesRemainingInRound === 0) {
+            roundActive = false;
+            roundCompleteTime = Date.now();
+            currentRound++;
+            // Update UI to show round complete
+            const roundText = document.getElementById('roundText');
+            if (roundText) {
+                roundText.textContent = `Round ${currentRound}`;
+            }
+        }
 
         // 20% chance to spawn a fish
         if (Math.random() < 0.2) {
@@ -665,13 +696,21 @@ export function gameLoop(scene, dayNightFactor) {
     // Update enemy positions
     updateEnemies();
 
-    // Check if it's time to spawn a new enemy
-    const currentTime = Date.now();
-    if (currentTime - lastSpawnTime > SPAWN_INTERVAL) {
-        // Spawn enemy at a random x position between map bounds
-        const randomX = Math.random() * (mapBounds.right - mapBounds.left) + mapBounds.left;
-        createEnemy(scene, randomX, -3.8);
-        lastSpawnTime = currentTime;
+    // Handle round progression
+    if (!roundActive) {
+        const currentTime = Date.now();
+        if (currentTime - roundCompleteTime > ROUND_TRANSITION_DELAY) {
+            spawnRoundEnemies(scene);
+        }
+    } else if (enemiesRemainingInRound > 0) {
+        const currentTime = Date.now();
+        // Spawn a new enemy after the spawn delay
+        if (currentTime - lastEnemySpawnTime >= SPAWN_DELAY) {
+            const randomX = Math.random() * (mapBounds.right - mapBounds.left) + mapBounds.left;
+            createEnemy(scene, randomX, -3.8);
+            enemiesRemainingInRound--;
+            lastEnemySpawnTime = currentTime;
+        }
     }
 
     // Update shadows for the player and enemies
@@ -914,4 +953,12 @@ function updateScore() {
     if (scoreElement) {
         scoreElement.textContent = `Score: ${score}`;
     }
+}
+
+// Add new function to spawn enemies for a round
+function spawnRoundEnemies(scene) {
+    const totalEnemies = 10 + (currentRound - 1) * 5;
+    enemiesRemainingInRound = totalEnemies;
+    lastEnemySpawnTime = Date.now();
+    roundActive = true;
 }
