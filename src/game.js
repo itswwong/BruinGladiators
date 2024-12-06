@@ -1041,7 +1041,7 @@ function spawnRoundEnemies(scene) {
         // Show boss round notification
         showUnlockNotification(
             "Boss Round!", 
-            "Defeat the mighty Minotaur! It takes 6 hits to destroy!"
+            "Defeat the mighty Minotaur!"
         );
     } else {
         // Normal round - spawn multiple regular enemies
