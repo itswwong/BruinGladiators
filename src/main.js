@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initGame, gameLoop } from './game';
+import { initGame, gameLoop, isPaused, togglePause } from './game';
 
 // Set up the scene
 const scene = new THREE.Scene();
@@ -108,6 +108,39 @@ style.textContent = `
     font-size: 24px;
     user-select: none;
   }
+  #pauseScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-family: Arial, sans-serif;
+    z-index: 1000;
+  }
+  #pauseScreen h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+  }
+  #resumeButton {
+    padding: 10px 20px;
+    font-size: 20px;
+    background-color: #44ff44;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 10px;
+  }
+  #resumeButton:hover {
+    background-color: #66ff66;
+  }
 `;
 document.head.appendChild(style);
 
@@ -153,9 +186,35 @@ scoreContainer.id = 'scoreContainer';
 scoreContainer.innerHTML = `<div id="scoreText">Score: 0</div>`;
 document.body.appendChild(scoreContainer);
 
+// Add pause screen
+const pauseScreen = document.createElement('div');
+pauseScreen.id = 'pauseScreen';
+pauseScreen.innerHTML = `
+  <h1>PAUSED</h1>
+  <button id="resumeButton">Resume Game</button>
+`;
+document.body.appendChild(pauseScreen);
+
 // Add restart functionality
 document.getElementById('restartButton').addEventListener('click', () => {
   location.reload();
+});
+
+// Add pause functionality
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' || event.key === 'p') {
+        togglePause();
+        const pauseScreen = document.getElementById('pauseScreen');
+        if (pauseScreen) {
+            pauseScreen.style.display = isPaused ? 'flex' : 'none';
+        }
+    }
+});
+
+// Add resume button functionality
+document.getElementById('resumeButton').addEventListener('click', () => {
+    togglePause();
+    document.getElementById('pauseScreen').style.display = 'none';
 });
 
 // Game initialization
@@ -163,32 +222,37 @@ initGame(scene, camera);
 
 // Render loop
 function animate() {
-  let timeDelta = 0.01;
-  const dayNightFactor = 0.75 * Math.sin(elapsedTime * 0.05) + 0.25;
-  dayOverlay.material.opacity = 0.5 * (1-dayNightFactor);
-
-  elapsedTime = (elapsedTime % (40*Math.PI)) +  timeDelta;
-
-  requestAnimationFrame(animate);
-
-  // Call game loop for logic updates
-  gameLoop(scene, dayNightFactor);
-
-  // Update HP text
-  const healthBar = scene.children.find(child => child.geometry?.type === 'PlaneGeometry' && child.material.color.getHex() === 0xff0000);
-  if (healthBar) {
-    const currentHealth = Math.round(healthBar.scale.x * 100);
-    document.getElementById('hpText').textContent = `${currentHealth} / 100`;
+    let timeDelta = 0.01;
+    let dayNightFactor = 0.75;  // Default value
     
-    if (currentHealth <= 0) {
-      document.getElementById('gameOverScreen').style.display = 'flex';
+    // Only update time and day/night cycle if game is not paused
+    if (!isPaused) {
+        dayNightFactor = 0.75 * Math.sin(elapsedTime * 0.05) + 0.25;
+        dayOverlay.material.opacity = 0.5 * (1-dayNightFactor);
+        elapsedTime = (elapsedTime % (40*Math.PI)) + timeDelta;
     }
-    
-    healthBar.position.x = camera.left + .2;
-    healthBar.position.y = camera.top - 0.4;
-  }
 
-  // Render the scene
-  renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+
+    // Game loop and rendering continue even when paused
+    gameLoop(scene, dayNightFactor);
+    renderer.render(scene, camera);
+
+    // Update HP text
+    const healthBar = scene.children.find(child => 
+        child.geometry?.type === 'PlaneGeometry' && 
+        child.material.color.getHex() === 0xff0000
+    );
+    if (healthBar) {
+        const currentHealth = Math.round(healthBar.scale.x * 100);
+        document.getElementById('hpText').textContent = `${currentHealth} / 100`;
+        
+        if (currentHealth <= 0) {
+            document.getElementById('gameOverScreen').style.display = 'flex';
+        }
+        
+        healthBar.position.x = camera.left + .2;
+        healthBar.position.y = camera.top - 0.4;
+    }
 }
 animate();
