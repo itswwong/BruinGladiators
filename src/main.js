@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initGame, gameLoop, isPaused, togglePause, currentRound, switchClaw } from './game';
+import { initGame, gameLoop, isPaused, togglePause, currentRound, switchClaw, gameOver } from './game';
 
 // Set up the scene
 const scene = new THREE.Scene();
@@ -53,18 +53,22 @@ style.textContent = `
   }
   #hpContainer {
     position: fixed;
-    top: 13px;
+    top: 20px;
     left: 20px;
-    color: black;
-    font-family: Arial, sans-serif;
-    font-size: 10px;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: bold;
     display: flex;
     align-items: center;
     gap: 10px;
     user-select: none;
+    z-index: 1000;
   }
   #hpText {
     min-width: 80px;
+    font-weight: bold;
   }
   #gameOverScreen {
     position: fixed;
@@ -78,7 +82,7 @@ style.textContent = `
     justify-content: center;
     align-items: center;
     color: white;
-    font-family: Arial, sans-serif;
+    font-family: 'Times New Roman', Times, serif;
     z-index: 1000;
   }
   #gameOverScreen h1 {
@@ -110,7 +114,7 @@ style.textContent = `
     justify-content: center;
     align-items: center;
     color: white;
-    font-family: Arial, sans-serif;
+    font-family: 'Times New Roman', Times, serif;
     z-index: 1000;
   }
   #pauseScreen h1 {
@@ -124,6 +128,7 @@ style.textContent = `
     color: white;
     border: none;
     border-radius: 5px;
+    font-family: 'Times New Roman', Times, serif;
     cursor: pointer;
     transition: background-color 0.3s;
     margin: 10px;
@@ -133,12 +138,17 @@ style.textContent = `
   }
   #roundContainer {
     position: fixed;
-    top: 40px;
-    left: 14px;
-    color: black;
-    font-family: Arial, sans-serif;
-    font-size: 24px;
+    top: 50px;
+    left: 20px;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-family: 'Times New Roman', Times, serif;
     user-select: none;
+    z-index: 1000;
+  }
+  #roundText {
+    font-weight: bold;
   }
   #clawInventory {
     position: fixed;
@@ -156,7 +166,7 @@ style.textContent = `
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: Arial, sans-serif;
+    font-family: 'Times New Roman', Times, serif;
   }
   .claw-slot.locked {
     opacity: 0.5;
@@ -177,6 +187,7 @@ style.textContent = `
     border-radius: 5px;
     opacity: 0.6;
     cursor: pointer;
+    font-family: 'Times New Roman', Times, serif;
   }
   .weapon-option.active {
     opacity: 1;
@@ -202,7 +213,7 @@ style.textContent = `
     padding: 20px;
     border-radius: 10px;
     text-align: center;
-    font-family: Arial, sans-serif;
+    font-family: 'Times New Roman', Times, serif;
     animation: fadeInOut 3s forwards;
     margin-bottom: 10px;
   }
@@ -248,7 +259,7 @@ loader.load('assets/colosseum.png', (texture) => {
 const hpContainer = document.createElement('div');
 hpContainer.id = 'hpContainer';
 hpContainer.innerHTML = `
-  <div>HP</div>
+  <div>HP:</div>
   <div id="hpText">100 / 100</div>
 `;
 document.body.appendChild(hpContainer);
@@ -339,8 +350,8 @@ function animate() {
     let timeDelta = 0.01;
     let dayNightFactor = 0.75;  // Default value
     
-    // Only update time and day/night cycle if game is not paused
-    if (!isPaused) {
+    // Only update time and day/night cycle if game is not paused or over
+    if (!isPaused && !gameOver) {
         dayNightFactor = 0.75 * Math.sin(elapsedTime * 0.05) + 0.25;
         dayOverlay.material.opacity = 0.5 * (1-dayNightFactor);
         elapsedTime = (elapsedTime % (40*Math.PI)) + timeDelta;
@@ -348,27 +359,24 @@ function animate() {
 
     requestAnimationFrame(animate);
 
-    // Game loop and rendering continue even when paused
-    gameLoop(scene, dayNightFactor);
-    renderer.render(scene, camera);
-
     // Update HP text
-    const healthBar = scene.children.find(child => 
-        child.geometry?.type === 'PlaneGeometry' && 
-        child.material.color.getHex() === 0xff0000
-    );
-    if (healthBar) {
-        const currentHealth = Math.round(healthBar.scale.x * 100);
-        document.getElementById('hpText').textContent = `${currentHealth} / 100`;
+    const player = scene.children.find(child => child.isPlayer);
+    if (player && player.health !== undefined) {
+        const currentHealth = Math.round(player.health);
+        document.getElementById('hpText').textContent = `${currentHealth}/100`;
         
-        if (currentHealth <= 0) {
-            document.getElementById('gameOverScreen').style.display = 'flex';
-            document.getElementById('finalRound').textContent = `You Survived Until Round ${currentRound}`;
+        if (currentHealth <= 0 && !gameOver) {
+          document.getElementById('gameOverScreen').style.display = 'flex';
+            document.getElementById('finalRound').textContent = `You Survived Until Round ${currentRound}`;  
+          gameOver = true;
         }
-        
-        healthBar.position.x = camera.left + .2;
-        healthBar.position.y = camera.top - 0.4;
     }
+
+    // Game loop and rendering continue even when paused
+    if (!gameOver) {  // Add this check
+        gameLoop(scene, dayNightFactor);
+    }
+    renderer.render(scene, camera);
 }
 animate();
 
@@ -381,4 +389,5 @@ clawInventory.innerHTML = `
     <div class="claw-slot locked" data-claw="dual">3</div>
     <div class="claw-slot locked" data-claw="long">4</div>
 `;
+document.body.appendChild(clawInventory);
 document.body.appendChild(clawInventory);
