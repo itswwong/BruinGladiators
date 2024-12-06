@@ -88,6 +88,9 @@ let gameActive = true;
 // Add at the top with other variables
 export let isPaused = false;
 
+// Add at the top with other variables
+export let gameOver = false;
+
 // Update pause/unpause function
 export function togglePause() {
     // Only allow pausing if the game is active
@@ -143,6 +146,8 @@ export function initGame(scene) {
         // Create the player mesh and apply the texture
         player = new THREE.Mesh(playerGeometry, playerMaterial);
         player.position.set(0, 0, 0);
+        player.health = 100;
+        player.isPlayer = true;
         scene.add(player);
         // Create the player shadow
         playerShadow = createShadow({x: 0, y: 0, z: 0});
@@ -183,9 +188,9 @@ export function initGame(scene) {
     //createSun(scene);
 
     // Create floating platforms
-    createPlatform(scene, -3, -2.5, 2, 0.5);
-    createPlatform(scene, 5, -1.5, 2, 0.5);
-    createPlatform(scene, 2, -1.5, 2, 0.5);
+    createPlatform(scene, -5, -2.5, 2, 0.5);
+    createPlatform(scene, 0, -2.5, 2, 0.5);
+    createPlatform(scene, 5, -2.5, 2, 0.5);
 
     // Create health bar
     // const healthBarGeometry = new THREE.PlaneGeometry(2, 0.2);
@@ -604,6 +609,7 @@ function handleDamage() {
     const currentTime = Date.now();
     if (currentTime - lastDamageTime >= damageInterval) {
         playerHealth = Math.max(0, playerHealth - 10);
+        player.health = playerHealth;
         lastDamageTime = currentTime;
         knockPlayer();
         
@@ -615,13 +621,8 @@ function handleDamage() {
         }
         
         if (playerHealth <= 0) {
-            console.log("Game Over!");
-            gameActive = false;  // Stop the game
-            const gameOverScreen = document.getElementById('gameOverScreen');
-            if (gameOverScreen) {
-                gameOverScreen.style.display = 'flex';
-                document.getElementById('finalRound').textContent = `You Survived Until Round ${currentRound}`;
-            }
+            gameOver = true;
+            gameActive = false;
         }
     }
 }
@@ -633,13 +634,13 @@ function checkFish(scene){
       console.log("Collected fish");
       scene.remove(fish);
       playerHealth = Math.min(100, playerHealth + 10);
-      const healthBar = scene.children.find(child => 
-        child.geometry?.type === 'PlaneGeometry' && 
-        child.material.color.getHex() === 0xff0000
-      );
-      if (healthBar) {
-        healthBar.scale.x = playerHealth / 100;
+      player.health = playerHealth;
+      
+      const hpText = document.getElementById('hpText');
+      if (hpText) {
+        hpText.textContent = `${playerHealth}`;
       }
+      
       fishes.splice(fishes.indexOf(fish), 1);
     }
   })
@@ -705,7 +706,7 @@ function updateShadows(dayNightFactor) {
 
 // Game loop logic, to be called in animate
 export function gameLoop(scene, dayNightFactor) {
-    if (!gameActive || isPaused) return;  // Stop game loop if game is not active or is paused
+    if (gameOver || isPaused) return;
     
     // Horizontal movement
     if ((keys['ArrowLeft'] || keys['a']) && player.position.x > mapBounds.left) {

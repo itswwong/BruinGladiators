@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initGame, gameLoop, isPaused, togglePause, currentRound, switchClaw } from './game';
+import { initGame, gameLoop, isPaused, togglePause, currentRound, switchClaw, gameOver } from './game';
 
 // Set up the scene
 const scene = new THREE.Scene();
@@ -128,6 +128,7 @@ style.textContent = `
     color: white;
     border: none;
     border-radius: 5px;
+    font-family: 'Times New Roman', Times, serif;
     cursor: pointer;
     transition: background-color 0.3s;
     margin: 10px;
@@ -349,8 +350,8 @@ function animate() {
     let timeDelta = 0.01;
     let dayNightFactor = 0.75;  // Default value
     
-    // Only update time and day/night cycle if game is not paused
-    if (!isPaused) {
+    // Only update time and day/night cycle if game is not paused or over
+    if (!isPaused && !gameOver) {
         dayNightFactor = 0.75 * Math.sin(elapsedTime * 0.05) + 0.25;
         dayOverlay.material.opacity = 0.5 * (1-dayNightFactor);
         elapsedTime = (elapsedTime % (40*Math.PI)) + timeDelta;
@@ -358,27 +359,24 @@ function animate() {
 
     requestAnimationFrame(animate);
 
-    // Game loop and rendering continue even when paused
-    gameLoop(scene, dayNightFactor);
-    renderer.render(scene, camera);
-
     // Update HP text
-    // const healthBar = scene.children.find(child => 
-    //     child.geometry?.type === 'PlaneGeometry' && 
-    //     child.material.color.getHex() === 0xff0000
-    // );
-    // if (healthBar) {
-    //     const currentHealth = Math.round(healthBar.scale.x * 100);
-    //     document.getElementById('hpText').textContent = `${currentHealth} / 100`;
+    const player = scene.children.find(child => child.isPlayer);
+    if (player && player.health !== undefined) {
+        const currentHealth = Math.round(player.health);
+        document.getElementById('hpText').textContent = `${currentHealth}/100`;
         
-    //     if (currentHealth <= 0) {
-    //         document.getElementById('gameOverScreen').style.display = 'flex';
-    //         document.getElementById('finalRound').textContent = `You Survived Until Round ${currentRound}`;
-    //     }
-        
-    //     healthBar.position.x = camera.left + .2;
-    //     healthBar.position.y = camera.top - 0.4;
-    // }
+        if (currentHealth <= 0 && !gameOver) {
+          document.getElementById('gameOverScreen').style.display = 'flex';
+            document.getElementById('finalRound').textContent = `You Survived Until Round ${currentRound}`;  
+          gameOver = true;
+        }
+    }
+
+    // Game loop and rendering continue even when paused
+    if (!gameOver) {  // Add this check
+        gameLoop(scene, dayNightFactor);
+    }
+    renderer.render(scene, camera);
 }
 animate();
 
@@ -391,4 +389,5 @@ clawInventory.innerHTML = `
     <div class="claw-slot locked" data-claw="dual">3</div>
     <div class="claw-slot locked" data-claw="long">4</div>
 `;
+document.body.appendChild(clawInventory);
 document.body.appendChild(clawInventory);
