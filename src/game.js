@@ -665,248 +665,218 @@ export function getPlayerHealth() {
     return playerHealth;
 }
 
-// Add these variables near the top with other global variables
+// Update ENEMY_STATS to remove retreat-related constants
 const ENEMY_STATS = {
-  SPEED: 0.02,
-  DETECTION_RANGE: 3,
-  PATROL_RANGE: 3,
-  ATTACK_RANGE: 1.2,
-  RETREAT_RANGE: 1,
-  JUMP_STRENGTH: 0.15,
-  ATTACK_COOLDOWN: 1500,
-  RETREAT_DURATION: 1000
+    SPEED: 0.02,
+    DETECTION_RANGE: 3,
+    PATROL_RANGE: 3,
+    ATTACK_RANGE: 1.2,
+    JUMP_STRENGTH: 0.15,
+    ATTACK_COOLDOWN: 1500
 };
 
 // Enhanced Enemy class with more sophisticated behavior
 class Enemy {
-  constructor(mesh) {
-    this.mesh = mesh;
-    this.startX = mesh.position.x;
-    this.direction = Math.random() < 0.5 ? -1 : 1;
-    this.state = 'patrol';
-    this.lastAttackTime = 0;
-    this.retreatStartTime = 0;
-    this.velocityY = 0;
-    this.isGrounded = false;
-    this.jumpCooldown = 0;
-    this.lastKnownPlayerPos = null;
-    
-    // Ensure patrol bounds don't exceed map bounds
-    const maxPatrolDistance = ENEMY_STATS.PATROL_RANGE;
-    this.patrolLeftBound = Math.max(mapBounds.left, this.startX - maxPatrolDistance);
-    this.patrolRightBound = Math.min(mapBounds.right, this.startX + maxPatrolDistance);
-  }
-
-  calculateNextX(playerPos) {
-    let nextX = this.mesh.position.x;
-    
-    switch (this.state) {
-      case 'patrol':
-        // Calculate next position
-        nextX = this.mesh.position.x + (ENEMY_STATS.SPEED * this.direction);
+    constructor(mesh) {
+        this.mesh = mesh;
+        this.startX = mesh.position.x;
+        this.direction = Math.random() < 0.5 ? -1 : 1;
+        this.state = 'patrol';
+        this.lastAttackTime = 0;
+        this.velocityY = 0;
+        this.isGrounded = false;
+        this.jumpCooldown = 0;
+        this.lastKnownPlayerPos = null;
         
-        // Check both patrol and map bounds
-        if (nextX <= this.patrolLeftBound || nextX <= mapBounds.left) {
-          this.direction = 1;
-          nextX = Math.max(this.patrolLeftBound, mapBounds.left);
-        } else if (nextX >= this.patrolRightBound || nextX >= mapBounds.right) {
-          this.direction = -1;
-          nextX = Math.min(this.patrolRightBound, mapBounds.right);
-        }
+        const maxPatrolDistance = ENEMY_STATS.PATROL_RANGE;
+        this.patrolLeftBound = Math.max(mapBounds.left, this.startX - maxPatrolDistance);
+        this.patrolRightBound = Math.min(mapBounds.right, this.startX + maxPatrolDistance);
+    }
+
+    calculateNextX(playerPos) {
+        let nextX = this.mesh.position.x;
         
-        this.mesh.scale.x = this.direction > 0 ? -1 : 1;
-        break;
+        switch (this.state) {
+            case 'patrol':
+                nextX = this.mesh.position.x + (ENEMY_STATS.SPEED * this.direction);
+                
+                if (nextX <= this.patrolLeftBound || nextX <= mapBounds.left) {
+                    this.direction = 1;
+                    nextX = Math.max(this.patrolLeftBound, mapBounds.left);
+                } else if (nextX >= this.patrolRightBound || nextX >= mapBounds.right) {
+                    this.direction = -1;
+                    nextX = Math.min(this.patrolRightBound, mapBounds.right);
+                }
+                
+                this.mesh.scale.x = this.direction > 0 ? -1 : 1;
+                break;
 
-      case 'chase':
-        const directionX = playerPos.x - this.mesh.position.x;
-        nextX = this.mesh.position.x + Math.sign(directionX) * ENEMY_STATS.SPEED;
-        // Enforce map bounds during chase
-        nextX = Math.max(mapBounds.left, Math.min(mapBounds.right, nextX));
-        this.mesh.scale.x = directionX > 0 ? -1 : 1;
-        break;
-
-      case 'retreat':
-        const retreatDir = this.lastKnownPlayerPos ? 
-          this.lastKnownPlayerPos.x - this.mesh.position.x : 
-          playerPos.x - this.mesh.position.x;
-        nextX = this.mesh.position.x - Math.sign(retreatDir) * ENEMY_STATS.SPEED * 1.5;
-        // Enforce map bounds during retreat
-        nextX = Math.max(mapBounds.left, Math.min(mapBounds.right, nextX));
-        this.mesh.scale.x = -Math.sign(retreatDir);
-        break;
-    }
-
-    return nextX;
-  }
-
-  enforceMapBoundaries() {
-    // Enforce horizontal boundaries and update direction if needed
-    if (this.mesh.position.x <= mapBounds.left) {
-      this.mesh.position.x = mapBounds.left;
-      if (this.state === 'patrol') {
-        this.direction = 1;
-        this.mesh.scale.x = -1;
-      }
-    } else if (this.mesh.position.x >= mapBounds.right) {
-      this.mesh.position.x = mapBounds.right;
-      if (this.state === 'patrol') {
-        this.direction = -1;
-        this.mesh.scale.x = 1;
-      }
-    }
-
-    // Enforce bottom boundary
-    if (this.mesh.position.y < mapBounds.bottom) {
-      this.mesh.position.y = mapBounds.bottom;
-      this.velocityY = 0;
-      this.isGrounded = true;
-    }
-  }
-
-  updateState(playerPos) {
-    const distanceToPlayer = this.mesh.position.distanceTo(playerPos);
-    const currentTime = Date.now();
-
-    switch (this.state) {
-      case 'patrol':
-        if (distanceToPlayer < ENEMY_STATS.DETECTION_RANGE) {
-          this.state = 'chase';
-          this.lastKnownPlayerPos = playerPos.clone();
+            case 'chase':
+                const directionX = playerPos.x - this.mesh.position.x;
+                nextX = this.mesh.position.x + Math.sign(directionX) * ENEMY_STATS.SPEED;
+                nextX = Math.max(mapBounds.left, Math.min(mapBounds.right, nextX));
+                this.mesh.scale.x = directionX > 0 ? -1 : 1;
+                break;
         }
-        break;
 
-      case 'chase':
-        if (distanceToPlayer > ENEMY_STATS.DETECTION_RANGE) {
-          this.state = 'patrol';
-          // When returning to patrol, ensure we're within bounds
-          if (this.mesh.position.x <= this.patrolLeftBound) {
-            this.direction = 1;
-          } else if (this.mesh.position.x >= this.patrolRightBound) {
-            this.direction = -1;
-          }
-        } else {
-          this.lastKnownPlayerPos = playerPos.clone();
-          if (distanceToPlayer < ENEMY_STATS.ATTACK_RANGE) {
-            this.state = 'attack';
-          }
+        return nextX;
+    }
+
+    updateState(playerPos) {
+        const distanceToPlayer = this.mesh.position.distanceTo(playerPos);
+        const currentTime = Date.now();
+
+        switch (this.state) {
+            case 'patrol':
+                if (distanceToPlayer < ENEMY_STATS.DETECTION_RANGE) {
+                    this.state = 'chase';
+                    this.lastKnownPlayerPos = playerPos.clone();
+                }
+                break;
+
+            case 'chase':
+                if (distanceToPlayer > ENEMY_STATS.DETECTION_RANGE) {
+                    this.state = 'patrol';
+                    if (this.mesh.position.x <= this.patrolLeftBound) {
+                        this.direction = 1;
+                    } else if (this.mesh.position.x >= this.patrolRightBound) {
+                        this.direction = -1;
+                    }
+                } else {
+                    this.lastKnownPlayerPos = playerPos.clone();
+                    if (distanceToPlayer < ENEMY_STATS.ATTACK_RANGE) {
+                        if (currentTime - this.lastAttackTime > ENEMY_STATS.ATTACK_COOLDOWN) {
+                            this.lastAttackTime = currentTime;
+                        }
+                    }
+                }
+                break;
         }
-        break;
+    }
 
-      case 'attack':
-        if (currentTime - this.lastAttackTime > ENEMY_STATS.ATTACK_COOLDOWN) {
-          this.state = 'retreat';
-          this.retreatStartTime = currentTime;
-          this.lastAttackTime = currentTime;
+    move(playerPos, platforms) {
+        // Always apply gravity first
+        this.velocityY += gravity;
+
+        // Store current position for collision checks
+        const nextY = this.mesh.position.y + this.velocityY;
+        const nextX = this.calculateNextX(playerPos);
+
+        // Check and apply horizontal movement within bounds
+        if (nextX >= mapBounds.left && nextX <= mapBounds.right) {
+            this.mesh.position.x = nextX;
         }
-        break;
 
-      case 'retreat':
-        if (currentTime - this.retreatStartTime > ENEMY_STATS.RETREAT_DURATION) {
-          this.state = 'chase';
+        // Apply vertical movement and platform collisions
+        this.handlePlatformCollisions(platforms, nextY);
+
+        // Enforce map boundaries
+        this.enforceMapBoundaries();
+
+        // Handle jumping logic after position updates
+        this.handleJumping(playerPos, platforms);
+    }
+
+    handlePlatformCollisions(platforms, nextY) {
+        this.isGrounded = false;
+        const enemyBounds = getObjectBounds(this.mesh);
+        const nextEnemyBounds = {
+            ...enemyBounds,
+            top: nextY + this.mesh.geometry.parameters.height / 2,
+            bottom: nextY - this.mesh.geometry.parameters.height / 2
+        };
+
+        let collision = false;
+
+        for (const platform of platforms) {
+            const platformBounds = getObjectBounds(platform);
+            
+            // Check if enemy is horizontally aligned with platform
+            const horizontallyAligned = 
+                enemyBounds.right > platformBounds.left && 
+                enemyBounds.left < platformBounds.right;
+
+            if (horizontallyAligned) {
+                // Landing on platform
+                if (this.velocityY < 0 && 
+                    nextEnemyBounds.bottom <= platformBounds.top && 
+                    enemyBounds.bottom >= platformBounds.top) {
+                    this.mesh.position.y = platformBounds.top + this.mesh.geometry.parameters.height / 2;
+                    this.velocityY = 0;
+                    this.isGrounded = true;
+                    collision = true;
+                    break;
+                }
+                // Hitting ceiling
+                else if (this.velocityY > 0 && 
+                         nextEnemyBounds.top >= platformBounds.bottom && 
+                         enemyBounds.top <= platformBounds.bottom) {
+                    this.mesh.position.y = platformBounds.bottom - this.mesh.geometry.parameters.height / 2;
+                    this.velocityY = 0;
+                    collision = true;
+                    break;
+                }
+            }
         }
-        break;
-    }
-  }
 
-  move(playerPos, platforms) {
-    // Always apply gravity first
-    this.velocityY += gravity;
-
-    // Store current position for collision checks
-    const nextY = this.mesh.position.y + this.velocityY;
-    const nextX = this.calculateNextX(playerPos);
-
-    // Check and apply horizontal movement within bounds
-    if (nextX >= mapBounds.left && nextX <= mapBounds.right) {
-      this.mesh.position.x = nextX;
-    }
-
-    // Apply vertical movement and platform collisions
-    this.handlePlatformCollisions(platforms, nextY);
-
-    // Enforce map boundaries
-    this.enforceMapBoundaries();
-
-    // Handle jumping logic after position updates
-    this.handleJumping(playerPos, platforms);
-  }
-
-  handlePlatformCollisions(platforms, nextY) {
-    this.isGrounded = false;
-    const enemyBounds = getObjectBounds(this.mesh);
-    const nextEnemyBounds = {
-      ...enemyBounds,
-      top: nextY + this.mesh.geometry.parameters.height / 2,
-      bottom: nextY - this.mesh.geometry.parameters.height / 2
-    };
-
-    let collision = false;
-
-    for (const platform of platforms) {
-      const platformBounds = getObjectBounds(platform);
-      
-      // Check if enemy is horizontally aligned with platform
-      const horizontallyAligned = 
-        enemyBounds.right > platformBounds.left && 
-        enemyBounds.left < platformBounds.right;
-
-      if (horizontallyAligned) {
-        // Landing on platform
-        if (this.velocityY < 0 && 
-            nextEnemyBounds.bottom <= platformBounds.top && 
-            enemyBounds.bottom >= platformBounds.top) {
-          this.mesh.position.y = platformBounds.top + this.mesh.geometry.parameters.height / 2;
-          this.velocityY = 0;
-          this.isGrounded = true;
-          collision = true;
-          break;
+        // If no collision, apply vertical movement
+        if (!collision) {
+            this.mesh.position.y = nextY;
         }
-        // Hitting ceiling
-        else if (this.velocityY > 0 && 
-                 nextEnemyBounds.top >= platformBounds.bottom && 
-                 enemyBounds.top <= platformBounds.bottom) {
-          this.mesh.position.y = platformBounds.bottom - this.mesh.geometry.parameters.height / 2;
-          this.velocityY = 0;
-          collision = true;
-          break;
+    }
+
+    handleJumping(playerPos, platforms) {
+        if (!this.isGrounded || this.jumpCooldown > 0) {
+            this.jumpCooldown = Math.max(0, this.jumpCooldown - 1);
+            return;
         }
-      }
-    }
 
-    // If no collision, apply vertical movement
-    if (!collision) {
-      this.mesh.position.y = nextY;
-    }
-  }
-
-  handleJumping(playerPos, platforms) {
-    if (!this.isGrounded || this.jumpCooldown > 0) {
-      this.jumpCooldown = Math.max(0, this.jumpCooldown - 1);
-      return;
-    }
-
-    // Jump if player is above and in chase state
-    if (playerPos.y > this.mesh.position.y + 1 && this.state === 'chase') {
-      this.velocityY = ENEMY_STATS.JUMP_STRENGTH;
-      this.jumpCooldown = 60;
-      this.isGrounded = false;
-    }
-
-    // Jump over platforms while chasing
-    if (this.state === 'chase') {
-      const lookAheadX = this.mesh.position.x + Math.sign(playerPos.x - this.mesh.position.x) * 1;
-      platforms.forEach(platform => {
-        const platformBounds = getObjectBounds(platform);
-        if (lookAheadX > platformBounds.left && 
-            lookAheadX < platformBounds.right && 
-            Math.abs(this.mesh.position.y - platformBounds.top) < 1) {
-          this.velocityY = ENEMY_STATS.JUMP_STRENGTH;
-          this.jumpCooldown = 60;
-          this.isGrounded = false;
+        // Jump if player is above and in chase state
+        if (playerPos.y > this.mesh.position.y + 1 && this.state === 'chase') {
+            this.velocityY = ENEMY_STATS.JUMP_STRENGTH;
+            this.jumpCooldown = 60;
+            this.isGrounded = false;
         }
-      });
+
+        // Jump over platforms while chasing
+        if (this.state === 'chase') {
+            const lookAheadX = this.mesh.position.x + Math.sign(playerPos.x - this.mesh.position.x) * 1;
+            platforms.forEach(platform => {
+                const platformBounds = getObjectBounds(platform);
+                if (lookAheadX > platformBounds.left && 
+                    lookAheadX < platformBounds.right && 
+                    Math.abs(this.mesh.position.y - platformBounds.top) < 1) {
+                    this.velocityY = ENEMY_STATS.JUMP_STRENGTH;
+                    this.jumpCooldown = 60;
+                    this.isGrounded = false;
+                }
+            });
+        }
     }
-  }
+
+    enforceMapBoundaries() {
+        // Enforce horizontal boundaries and update direction if needed
+        if (this.mesh.position.x <= mapBounds.left) {
+            this.mesh.position.x = mapBounds.left;
+            if (this.state === 'patrol') {
+                this.direction = 1;
+                this.mesh.scale.x = -1;
+            }
+        } else if (this.mesh.position.x >= mapBounds.right) {
+            this.mesh.position.x = mapBounds.right;
+            if (this.state === 'patrol') {
+                this.direction = -1;
+                this.mesh.scale.x = 1;
+            }
+        }
+
+        // Enforce bottom boundary
+        if (this.mesh.position.y < mapBounds.bottom) {
+            this.mesh.position.y = mapBounds.bottom;
+            this.velocityY = 0;
+            this.isGrounded = true;
+        }
+    }
 }
 
 // Update the enemy movement function
