@@ -120,6 +120,12 @@ export let unlockedClaws = {
 
 let currentClaw = 'default';
 
+// Add these variables at the top with other state variables
+const BOSS_ROUNDS_INTERVAL = 4; // Boss appears every 4 rounds
+const BOSS_HEALTH = 6; // Boss takes 6 hits to defeat
+let isBossRound = false;
+let bossSpawned = false; // New flag to prevent multiple boss spawns
+
 // Modify the initGame function to initialize round variables
 export function initGame(scene) {
     gameActive = true;  // Reset game state
@@ -334,23 +340,46 @@ function createFish(scene, xCoord, yCoord){
 }
 // Create enemies at the specified coordinates for the given scene
 function createEnemy(scene, xCoord, yCoord) {
-    // Load Spartan texture and apply it to enemy material
-    loader.load('assets/spartan.png', (texture) => {
-        texture.magFilter = THREE.NearestFilter; // Keeps pixelation if the texture is pixel art
-        
-        const enemyMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        const enemyGeometry = new THREE.PlaneGeometry(1, 1); // Adjust dimensions to suit the image size
+    if (isBossRound && !bossSpawned) { // Only create boss if not already spawned
+        console.log('Creating boss enemy'); // Debug log
+        // Load Minotaur texture for boss
+        loader.load('assets/minotaur.png', (texture) => {
+            texture.magFilter = THREE.NearestFilter;
+            
+            const enemyMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+            const enemyGeometry = new THREE.PlaneGeometry(2, 2);
 
-        const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
-        enemyMesh.position.set(xCoord, yCoord + 0.3, 0);
+            const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
+            enemyMesh.position.set(xCoord, yCoord, 0);
+            enemyMesh.isBoss = true;
+            enemyMesh.health = BOSS_HEALTH;
 
-        const enemy = new Enemy(enemyMesh);
-        enemy.shadow = createShadow({x: xCoord, y: yCoord, z: 0});
-        enemies.push(enemy);
-        scene.add(enemyMesh);
-        scene.add(enemy.shadow);
-        
-    });
+            const enemy = new Enemy(enemyMesh);
+            enemy.shadow = createShadow({x: xCoord, y: yCoord, z: 0});
+            enemy.shadow.scale.set(2, 1, 1);
+            enemies.push(enemy);
+            scene.add(enemyMesh);
+            scene.add(enemy.shadow);
+            bossSpawned = true; // Mark boss as spawned
+        });
+    } else if (!isBossRound) {
+        // Regular enemy spawning logic
+        loader.load('assets/spartan.png', (texture) => {
+            texture.magFilter = THREE.NearestFilter;
+            
+            const enemyMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+            const enemyGeometry = new THREE.PlaneGeometry(1, 1);
+
+            const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
+            enemyMesh.position.set(xCoord, yCoord + 0.3, 0);
+
+            const enemy = new Enemy(enemyMesh);
+            enemy.shadow = createShadow({x: xCoord, y: yCoord, z: 0});
+            enemies.push(enemy);
+            scene.add(enemyMesh);
+            scene.add(enemy.shadow);
+        });
+    }
 }
 
 
@@ -484,14 +513,27 @@ function attack(scene, clawLength) {
           bottom: claw2.position.y - 0.05,
         };
 
-        if (checkCollision(enemyBounds, clawBounds) || checkCollision(enemyBounds, clawBounds2)) {
-          enemiesToRemove.push({
-            enemy: enemy,
-            position: {
-              x: enemy.mesh.position.x,
-              y: enemy.mesh.position.y
+        if (checkCollision(enemyBounds, clawBounds) || (twoSidedClawEnabled && checkCollision(enemyBounds, clawBounds2))) {
+            if (enemy.mesh.isBoss) {
+                enemy.mesh.health--;
+                if (enemy.mesh.health <= 0) {
+                    enemiesToRemove.push({
+                        enemy: enemy,
+                        position: {
+                            x: enemy.mesh.position.x,
+                            y: enemy.mesh.position.y
+                        }
+                    });
+                }
+            } else {
+                enemiesToRemove.push({
+                    enemy: enemy,
+                    position: {
+                        x: enemy.mesh.position.x,
+                        y: enemy.mesh.position.y
+                    }
+                });
             }
-          });
         }
       });
 
@@ -725,9 +767,8 @@ export function gameLoop(scene, dayNightFactor) {
         if (currentTime - roundCompleteTime > ROUND_TRANSITION_DELAY) {
             spawnRoundEnemies(scene);
         }
-    } else if (enemiesRemainingInRound > 0) {
+    } else if (roundActive && !isBossRound && enemiesRemainingInRound > 0) {
         const currentTime = Date.now();
-        // Spawn a new enemy after the spawn delay
         if (currentTime - lastEnemySpawnTime >= SPAWN_DELAY) {
             const randomX = Math.random() * (mapBounds.right - mapBounds.left) + mapBounds.left;
             createEnemy(scene, randomX, -3.8);
@@ -983,8 +1024,31 @@ function updateScore() {
 
 // Update the spawnRoundEnemies function
 function spawnRoundEnemies(scene) {
-    const totalEnemies = currentRound * 3; // 3 enemies per round (3, 6, 9, etc.)
-    enemiesRemainingInRound = totalEnemies;
-    lastEnemySpawnTime = Date.now();
+    console.log(`Starting round ${currentRound}`); // Debug log
+    isBossRound = currentRound % BOSS_ROUNDS_INTERVAL === 0;
+    bossSpawned = false; // Reset boss spawn flag at start of round
+    
+    if (isBossRound) {
+        console.log('This is a boss round!'); // Debug log
+        // Boss round - spawn single boss enemy
+        enemiesRemainingInRound = 1;
+        if (!bossSpawned) { // Only spawn if we haven't already
+            console.log('Spawning boss'); // Debug log
+            createEnemy(scene, 0, 0); // Spawn boss at center of screen
+            bossSpawned = true;
+        }
+        
+        // Show boss round notification
+        showUnlockNotification(
+            "Boss Round!", 
+            "Defeat the mighty Minotaur! It takes 6 hits to destroy!"
+        );
+    } else {
+        // Normal round - spawn multiple regular enemies
+        const totalEnemies = currentRound * 3;
+        enemiesRemainingInRound = totalEnemies;
+        lastEnemySpawnTime = Date.now();
+    }
+    
     roundActive = true;
 }
