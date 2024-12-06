@@ -188,16 +188,16 @@ export function initGame(scene) {
     createPlatform(scene, 2, -1.5, 2, 0.5);
 
     // Create health bar
-    const healthBarGeometry = new THREE.PlaneGeometry(2, 0.2);
-    const healthBarMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    healthBar = new THREE.Mesh(healthBarGeometry, healthBarMaterial);
+    // const healthBarGeometry = new THREE.PlaneGeometry(2, 0.2);
+    // const healthBarMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    // healthBar = new THREE.Mesh(healthBarGeometry, healthBarMaterial);
     
-    // Set the pivot point to the left side of the health bar
-    healthBarGeometry.translate(1, 0, 0);
+    // // Set the pivot point to the left side of the health bar
+    // healthBarGeometry.translate(1, 0, 0);
     
-    // Position health bar in top-left corner of the screen
-    healthBar.position.set(-8, 4, 1);
-    scene.add(healthBar);
+    // // Position health bar in top-left corner of the screen
+    // healthBar.position.set(-8, 4, 1);
+    // scene.add(healthBar);
 
     // Handle keyboard input
     document.addEventListener('keydown', (event) => keys[event.key] = true);
